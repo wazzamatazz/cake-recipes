@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>Jaahas.Cake.Extensions</id>
+    <version>1.0.0</version>
+    <title></title>
+    <authors>Graham Watts</authors>
+    <owners></owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <projectUrl>https://github.com/wazzamatazz/cake-recipes</projectUrl>
+    <description>Extensions for the Cake build system.</description>
+    <copyright>Copyright © 2021 Graham Watts</copyright>
+  </metadata>
+</package>
