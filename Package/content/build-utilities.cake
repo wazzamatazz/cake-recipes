@@ -53,7 +53,7 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
             var buildCounter = Argument("build-counter", 0);
             var buildMetadata = Argument("build-metadata", "");
 
-            // Set branch name. Fir Git repositories, we always use the friendly name of the 
+            // Set branch name. For Git repositories, we always use the friendly name of the 
             // current branch, regardless of what was specified in the branchName parameter.
             string branch;
 
