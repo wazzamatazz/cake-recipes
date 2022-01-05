@@ -5,9 +5,14 @@
 
 // Bootstraps the build using the specified default solution file and JSON version file.
 public void Bootstrap(string solutionFilePath, string versionFilePath) {
-    ConfigureBuildState(solutionFilePath, versionFilePath);
+    ConfigureBuildState(solutionFilePath, versionFilePath, GetBranchName());
     ConfigureTaskEventHandlers();
     ConfigureTasks();
+}
+
+
+private string GetBranchName() {
+    return Argument("branch", "");
 }
 
 
@@ -18,7 +23,7 @@ public string GetTarget() {
 
 
 // Configures the build state using the specified default solution file and JSON version file.
-private void ConfigureBuildState(string solutionFilePath, string versionFilePath) {
+private void ConfigureBuildState(string solutionFilePath, string versionFilePath, string branchName) {
     // Constructs the build state object.
     Setup<BuildState>(context => {
         try {
@@ -47,7 +52,20 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
 
             var buildCounter = Argument("build-counter", 0);
             var buildMetadata = Argument("build-metadata", "");
-            var branch = GitBranchCurrent(DirectoryPath.FromString(".")).FriendlyName;
+
+            // Set branch name. Fir Git repositories, we always use the friendly name of the 
+            // current branch, regardless of what was specified in the branchName parameter.
+            string branch;
+
+            var currentDir = DirectoryPath.FromString(".");
+            if (GitIsValidRepository(currentDir)) {
+                branch = GitBranchCurrent(currentDir).FriendlyName;
+            }
+            else {
+                branch = string.IsNullOrEmpty(branchName)
+                    ? "default"
+                    : branchName;
+            }
 
             state.AssemblyVersion = $"{majorVersion}.{minorVersion}.0.0";
 

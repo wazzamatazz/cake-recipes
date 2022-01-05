@@ -46,6 +46,7 @@ The following command line arguments are supported by the recipe:
 
 | Argument | Description | Default Value | Allowed Values |
 | -------- | ----------- | ------------- | ---------------|
+| `--branch=<FRIENDLY BRANCH NAME>` | The friendly name of the source control branch that is being built. Ignored for Git repositories. | | |
 | `--project=<PROJECT OR SOLUTION>` | The MSBuild project or solution to build. | `DefaultSolutionFile` constant in `build.cake` file | |
 | `--target=<TARGET>` | The Cake target to run. | `Test` | `Clean`, `Restore`, `Build`, `Test`, `Pack` |
 | `--configuration=<CONFIGURATION>` | The MSBuild configuration to use. | `Debug` | Any configuration defined in the MSBuild solution |
