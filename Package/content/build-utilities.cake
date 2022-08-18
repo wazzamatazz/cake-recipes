@@ -24,7 +24,7 @@ public string GetTarget() {
 
 // Normalises metadata for use in a SemVer v2.0.0 version.
 private string NormaliseMetadata(string s) {
-    var metadataNormaliser = new Regex("[^0-9A-Za-z-]");
+    var metadataNormaliser = new System.Text.RegularExpressions.Regex("[^0-9A-Za-z-]");
     return metadataNormaliser.Replace(s.Trim(), ".");
 }
 
