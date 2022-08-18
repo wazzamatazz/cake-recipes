@@ -22,6 +22,13 @@ public string GetTarget() {
 }
 
 
+// Normalises metadata for use in a SemVer v2.0.0 version.
+private string NormaliseMetadata(string s) {
+    var metadataNormaliser = new Regex("[^0-9A-Za-z-]");
+    return metadataNormaliser.Replace(s.Trim(), ".");
+}
+
+
 // Configures the build state using the specified default solution file and JSON version file.
 private void ConfigureBuildState(string solutionFilePath, string versionFilePath, string branchName) {
     // Constructs the build state object.
@@ -66,17 +73,17 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
                     ? "default"
                     : branchName;
             }
-
+            
             state.AssemblyVersion = $"{majorVersion}.{minorVersion}.0.0";
 
             state.AssemblyFileVersion = $"{majorVersion}.{minorVersion}.{patchVersion}.{buildCounter}";
 
             state.InformationalVersion = string.IsNullOrWhiteSpace(versionSuffix)
-                ? $"{majorVersion}.{minorVersion}.{patchVersion}.{buildCounter}+{branch}"
-                : $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}.{buildCounter}+{branch}";
+                ? $"{majorVersion}.{minorVersion}.{patchVersion}.{buildCounter}+{NormaliseMetadata(branch)}"
+                : $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}.{buildCounter}+{NormaliseMetadata(branch)}";
 
             if (!string.IsNullOrWhiteSpace(buildMetadata)) {
-                state.InformationalVersion = string.Concat(state.InformationalVersion, "#", buildMetadata);
+                state.InformationalVersion = string.Concat(state.InformationalVersion, ".", NormaliseMetadata(buildMetadata));
             }
 
             state.PackageVersion = string.IsNullOrWhiteSpace(versionSuffix)
