@@ -54,6 +54,10 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
             var minorVersion = versionJson.Value<int>("Minor");
             var patchVersion = versionJson.Value<int>("Patch");
             var versionSuffix = versionJson.Value<string>("PreRelease");
+            
+            state.MajorVersion = majorVersion;
+            state.MinorVersion = minorVersion;
+            state.PatchVersion = patchVersion;
 
             // Compute build and version numbers.
 
@@ -220,6 +224,9 @@ private void SetBuildSystemBuildNumber(BuildSystem buildSystem, BuildState build
         buildSystem.TeamCity.SetParameter("system.AssemblyFileVersion", buildState.AssemblyFileVersion);
         buildSystem.TeamCity.SetParameter("system.InformationalVersion", buildState.InformationalVersion);
         buildSystem.TeamCity.SetParameter("system.PackageVersion", buildState.PackageVersion);
+        buildSystem.TeamCity.SetParameter("BuildMajorVersion", buildState.MajorVersion);
+        buildSystem.TeamCity.SetParameter("BuildMinorVersion", buildState.MinorVersion);
+        buildSystem.TeamCity.SetParameter("BuildPatchVersion", buildState.PatchVersion);
     }
 }
 
