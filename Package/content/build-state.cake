@@ -31,6 +31,15 @@ public class BuildState {
     // Specifies if output signing is allowed.
     public bool CanSignOutput => SignOutput && ContinuousIntegrationBuild;
 
+    // Major version number.
+    public int MajorVersion { get; set; }
+    
+    // Minor version number.
+    public int MinorVersion { get; set; }
+    
+    // Patch version number.
+    public int PatchVersion { get; set; }
+    
     // MSBuild AssemblyVersion property value.
     public string AssemblyVersion { get; set; }
 
