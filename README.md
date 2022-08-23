@@ -27,7 +27,7 @@ Update your `build.cake` file as follows:
 const string DefaultSolutionFile = "./MySolution.sln";
 const string VersionFile = "./version.json";
 
-#load nuget:?package=Jaahas.Cake.Extensions&version=1.0.0
+#load nuget:?package=Jaahas.Cake.Extensions&version=1.4.0
 
 // Bootstrap build context and tasks.
 Bootstrap(DefaultSolutionFile, VersionFile);
@@ -48,7 +48,7 @@ The following command line arguments are supported by the recipe:
 | -------- | ----------- | ------------- | ---------------|
 | `--branch=<FRIENDLY BRANCH NAME>` | The friendly name of the source control branch that is being built. Ignored for Git repositories. | | |
 | `--project=<PROJECT OR SOLUTION>` | The MSBuild project or solution to build. | `DefaultSolutionFile` constant in `build.cake` file | |
-| `--target=<TARGET>` | The Cake target to run. | `Test` | `Clean`, `Restore`, `Build`, `Test`, `Pack` |
+| `--target=<TARGET>` | The Cake target to run. | `Test` | `Clean`, `Restore`, `Build`, `Test`, `Pack`, `BillOfMaterials` |
 | `--configuration=<CONFIGURATION>` | The MSBuild configuration to use. | `Debug` | Any configuration defined in the MSBuild solution |
 | `--clean` | Specifies that this is a rebuild rather than an incremental build. All artifact, bin, and test output folders will be cleaned prior to running the specified target. | | |
 | `--no-tests` | Specifies that unit tests should be skipped, even if a target that depends on the `Test` target is specified. | | |

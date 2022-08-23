@@ -1,6 +1,8 @@
 #addin nuget:?package=Cake.Git&version=2.0.0
 #addin nuget:?package=Cake.Json&version=7.0.1
 
+#tool dotnet:?package=CycloneDX&version=2.3.0
+
 #load "build-state.cake"
 
 // Bootstraps the build using the specified default solution file and JSON version file.
@@ -211,6 +213,19 @@ private void ConfigureTasks() {
 
             ApplyMSBuildProperties(buildSettings.MSBuildSettings, state);
             DotNetPack(state.SolutionName, buildSettings);
+        });
+
+    // Generates a CycloneDX Software Bill of Materials
+    Task("BillOfMaterials")
+        .IsDependentOn("Clean")
+        .Does<BuildState>(state => {
+            var cycloneDx = Context.Tools.Resolve("dotnet-CycloneDX.exe");
+            StartProcess(cycloneDx, new ProcessSettings {
+                Arguments = new ProcessArgumentBuilder()
+                    .Append(state.SolutionName)
+                    .Append("-o")
+                    .Append("./artifacts/bom")
+            });
         });
 }
 
