@@ -224,9 +224,9 @@ private void SetBuildSystemBuildNumber(BuildSystem buildSystem, BuildState build
         buildSystem.TeamCity.SetParameter("system.AssemblyFileVersion", buildState.AssemblyFileVersion);
         buildSystem.TeamCity.SetParameter("system.InformationalVersion", buildState.InformationalVersion);
         buildSystem.TeamCity.SetParameter("system.PackageVersion", buildState.PackageVersion);
-        buildSystem.TeamCity.SetParameter("MajorVersion", buildState.MajorVersion);
-        buildSystem.TeamCity.SetParameter("MinorVersion", buildState.MinorVersion);
-        buildSystem.TeamCity.SetParameter("PatchVersion", buildState.PatchVersion);
+        buildSystem.TeamCity.SetParameter("MajorVersion", buildState.MajorVersion.ToString());
+        buildSystem.TeamCity.SetParameter("MinorVersion", buildState.MinorVersion.ToString());
+        buildSystem.TeamCity.SetParameter("PatchVersion", buildState.PatchVersion.ToString());
     }
 }
 
