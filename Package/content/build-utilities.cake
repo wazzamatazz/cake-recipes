@@ -100,7 +100,8 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
                 ? $"{majorVersion}.{minorVersion}.{patchVersion}.{buildCounter}+{branch}"
                 : $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}.{buildCounter}+{branch}";
 
-            if (!string.Equals(state.Target, "Clean", StringComparison.OrdinalIgnoreCase)) {
+            var setBuildNumber = !string.Equals(state.Target, "Clean", StringComparison.OrdinalIgnoreCase) && !string.Equals(state.Target, "BillOfMaterials", StringComparison.OrdinalIgnoreCase)
+            if (setBuildNumber) {
                 SetBuildSystemBuildNumber(BuildSystem, state);
                 WriteBuildStateToLog(BuildSystem, state);
             }
