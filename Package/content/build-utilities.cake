@@ -221,11 +221,33 @@ private void ConfigureTasks() {
         .IsDependentOn("Clean")
         .Does<BuildState>(state => {
             var cycloneDx = Context.Tools.Resolve("dotnet-CycloneDX.exe");
+
+            var githubUser = Argument("github-username", "");
+            var githubToken = Argument("github-token", "");
+
+            if (!string.IsNullOrWhiteSpace(githubUser) && string.IsNullOrWhiteSpace(githubToken)) {
+                throw new InvalidOperationException("When specifying a GitHub username for Bill of Materials generation you must also specify a personal access token using the '--github-token' argument.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(githubToken) && string.IsNullOrWhiteSpace(githubUser)) {
+                throw new InvalidOperationException("When specifying a GitHub personal access token for Bill of Materials generation you must also specify the username for the token using the '--github-username' argument.");
+            }
+
+            var cycloneDxArgs = new ProcessArgumentBuilder()
+                .Append(state.SolutionName)
+                .Append("-o")
+                .Append("./artifacts/bom");
+
+            if (!string.IsNullOrWhiteSpace(githubUser)) {
+                cycloneDxArgs.Append("-gu").Append(githubUser);
+            }
+
+            if (!string.IsNullOrWhiteSpace(githubToken)) {
+                cycloneDxArgs.Append("-gt").Append(githubToken);
+            }
+
             StartProcess(cycloneDx, new ProcessSettings {
-                Arguments = new ProcessArgumentBuilder()
-                    .Append(state.SolutionName)
-                    .Append("-o")
-                    .Append("./artifacts/bom")
+                Arguments = cycloneDxArgs
             });
         });
 }

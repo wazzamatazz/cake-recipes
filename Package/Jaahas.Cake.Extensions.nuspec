@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
   <metadata>
     <id>Jaahas.Cake.Extensions</id>
-    <version>1.4.2</version>
+    <version>1.5.0</version>
     <title></title>
     <authors>Graham Watts</authors>
     <owners></owners>
