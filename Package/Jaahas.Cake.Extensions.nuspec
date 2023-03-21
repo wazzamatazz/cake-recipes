@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
   <metadata>
     <id>Jaahas.Cake.Extensions</id>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
     <title></title>
     <authors>Graham Watts</authors>
     <owners></owners>
@@ -10,7 +10,7 @@
     <license type="expression">MIT</license>
     <projectUrl>https://github.com/wazzamatazz/cake-recipes</projectUrl>
     <description>Extensions for the Cake build system.</description>
-    <copyright>Copyright © 2021-2022 Graham Watts</copyright>
+    <copyright>Copyright © 2021-2023 Graham Watts</copyright>
     <tags>Cake Script Build</tags>
   </metadata>
 </package>
