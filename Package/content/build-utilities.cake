@@ -203,11 +203,14 @@ private void ConfigureTasks() {
                     };
                 }
 
-                DotNetTest(state.SolutionName, testSettings);
-
-                if (testResultsPrefix != null) {
-                    foreach (var testResultsFile in GetFiles($"./**/TestResults/{testResultsPrefix}*.trx")) {
-                        ImportTestResults(BuildSystem, "mstest", testResultsFile);
+                try {
+                    DotNetTest(state.SolutionName, testSettings);
+                }
+                finally {
+                    if (testResultsPrefix != null) {
+                        foreach (var testResultsFile in GetFiles($"./**/TestResults/{testResultsPrefix}*.trx")) {
+                            ImportTestResults(BuildSystem, "mstest", testResultsFile);
+                        }
                     }
                 }
             }),
