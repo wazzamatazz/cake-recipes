@@ -5,7 +5,7 @@
 
 # Dependencies
 
-`Jaahas.Cake.Extensions` assumes that you are using Cake v2.0.0 or later.
+`Jaahas.Cake.Extensions` assumes that you are using Cake v3.0.0 or later.
 
 
 # Getting Started
@@ -32,11 +32,8 @@ const string VersionFile = "./version.json";
 // Bootstrap build context and tasks.
 Bootstrap(DefaultSolutionFile, VersionFile);
 
-// Get the target that was specified.
-var target = GetTarget();
-
-// Run the target.
-RunTarget(target);
+// Run the specified target.
+Run();
 ```
 
 
@@ -57,3 +54,5 @@ The following command line arguments are supported by the recipe:
 | `--build-counter=<COUNTER>` | The build counter. This is used when generating version numbers for the build. | 0 | |
 | `--build-metadata=<METADATA>` | Additional build metadata that will be included in the information version number generated for compiled assemblies. | | |
 | `--property=<PROPERTY>` | Specifies an additional property to pass to MSBuild during `Build` and `Pack` targets. The value must be specified using a `<NAME>=<VALUE>` format e.g. `--property="NoWarn=CS1591"`. This argument can be specified multiple times. | | |
+| `--github-username=<USERNAME>` | Specifies the GitHub username to use when making authenticated API calls to GitHub while running the `BillOfMaterials` task. You must specify the `--github-token` argument as well when specifying this argument. | |
+| `--github-token=<PERSONAL ACCESS TOKEN>` | Specifies the GitHub personal access token to use when making authenticated API calls to GitHub while running the `BillOfMaterials` task. You must specify the `--github-username` argument as well when specifying this argument. | |
