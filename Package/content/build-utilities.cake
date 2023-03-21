@@ -1,9 +1,15 @@
-#addin nuget:?package=Cake.Git&version=2.0.0
+using Spectre.Console;
+
+#addin nuget:?package=Cake.Git&version=3.0.0
 #addin nuget:?package=Cake.Json&version=7.0.1
 
-#tool dotnet:?package=CycloneDX&version=2.3.0
+#tool dotnet:?package=CycloneDX&version=2.7.0
 
 #load "build-state.cake"
+#load "task-definitions.cake"
+
+public TaskDefinitions Targets { get; private set; }
+
 
 // Bootstraps the build using the specified default solution file and JSON version file.
 public void Bootstrap(string solutionFilePath, string versionFilePath) {
@@ -24,6 +30,18 @@ public string GetTarget() {
 }
 
 
+// Runs the specified target.
+public void Run(string target = null) {
+    try {
+        RunTarget(target ?? GetTarget());
+    }
+    catch (Exception e) {
+        WriteErrorMessage(BuildSystem, null, e);
+        throw;
+    }
+}
+
+
 // Normalises metadata for use in a SemVer v2.0.0 version.
 private string NormaliseMetadata(string s) {
     var metadataNormaliser = new System.Text.RegularExpressions.Regex("[^0-9A-Za-z-]");
@@ -39,7 +57,7 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
             WriteTaskStartMessage(BuildSystem, "Setup");
             var state = new BuildState() {
                 SolutionName = Argument("project", solutionFilePath),
-                Target = target,
+                Target = context.TargetTask.Name,
                 Configuration = Argument("configuration", "Debug"),
                 ContinuousIntegrationBuild = HasArgument("ci") || !BuildSystem.IsLocalBuild,
                 Clean = HasArgument("clean"),
@@ -134,122 +152,116 @@ private void ConfigureTaskEventHandlers() {
 
 // Configures the available tasks.
 private void ConfigureTasks() {
-    // Cleans up artifact and bin folders.
-    Task("Clean")
-        .WithCriteria<BuildState>((c, state) => state.RunCleanTarget)
-        .Does<BuildState>(state => {
-            foreach (var pattern in new [] { $"./src/**/bin/{state.Configuration}", "./artifacts/**", "./**/TestResults/**" }) {
-                WriteLogMessage(BuildSystem, $"Cleaning directories: {pattern}");
-                CleanDirectories(pattern);
-            }
-        });
-
-
-    // Restores NuGet packages.
-    Task("Restore")
-        .Does<BuildState>(state => {
-            DotNetRestore(state.SolutionName);
-        });
-
-
-    // Builds the solution.
-    Task("Build")
-        .IsDependentOn("Clean")
-        .IsDependentOn("Restore")
-        .Does<BuildState>(state => {
-            var buildSettings = new DotNetBuildSettings {
-                Configuration = state.Configuration,
-                NoRestore = true,
-                MSBuildSettings = new DotNetMSBuildSettings()
-            };
-
-            buildSettings.MSBuildSettings.Targets.Add(state.Clean ? "Rebuild" : "Build");
-            ApplyMSBuildProperties(buildSettings.MSBuildSettings, state);
-            DotNetBuild(state.SolutionName, buildSettings);
-        });
-
-
-    // Runs unit tests.
-    Task("Test")
-        .IsDependentOn("Build")
-        .WithCriteria<BuildState>((c, state) => !state.SkipTests)
-        .Does<BuildState>(state => {
-            var testSettings = new DotNetTestSettings {
-                Configuration = state.Configuration,
-                NoBuild = true
-            };
-
-            var testResultsPrefix = state.ContinuousIntegrationBuild
-                ? Guid.NewGuid().ToString()
-                : null;
-
-            if (testResultsPrefix != null) {
-                // We're using a build system; write the test results to a file so that they can be 
-                // imported into the build system.
-                testSettings.Loggers = new List<string> {
-                    $"trx;LogFilePrefix={testResultsPrefix}"
-                };
-            }
-
-            DotNetTest(state.SolutionName, testSettings);
-
-            if (testResultsPrefix != null) {
-                foreach (var testResultsFile in GetFiles($"./**/TestResults/{testResultsPrefix}*.trx")) {
-                    ImportTestResults(BuildSystem, "mstest", testResultsFile);
+    Targets = new TaskDefinitions {
+        Clean = Task("Clean")
+            .WithCriteria<BuildState>((c, state) => state.RunCleanTarget)
+            .Does<BuildState>(state => {
+                foreach (var pattern in new [] { $"./src/**/bin/{state.Configuration}", "./artifacts/**", "./**/TestResults/**" }) {
+                    WriteLogMessage(BuildSystem, $"Cleaning directories: {pattern}");
+                    CleanDirectories(pattern);
                 }
-            }
-        });
+            }),
 
+        Restore = Task("Restore")
+            .Does<BuildState>(state => {
+                DotNetRestore(state.SolutionName);
+            }),
 
-    // Builds NuGet packages.
-    Task("Pack")
-        .IsDependentOn("Test")
-        .Does<BuildState>(state => {
-            var buildSettings = new DotNetPackSettings {
-                Configuration = state.Configuration,
-                NoRestore = true,
-                NoBuild = true,
-                MSBuildSettings = new DotNetMSBuildSettings()
-            };
+        Build = Task("Build")
+            .IsDependentOn("Clean")
+            .IsDependentOn("Restore")
+            .Does<BuildState>(state => {
+                var buildSettings = new DotNetBuildSettings {
+                    Configuration = state.Configuration,
+                    NoRestore = true,
+                    MSBuildSettings = new DotNetMSBuildSettings()
+                };
 
-            ApplyMSBuildProperties(buildSettings.MSBuildSettings, state);
-            DotNetPack(state.SolutionName, buildSettings);
-        });
+                buildSettings.MSBuildSettings.Targets.Add(state.Clean ? "Rebuild" : "Build");
+                ApplyMSBuildProperties(buildSettings.MSBuildSettings, state);
+                DotNetBuild(state.SolutionName, buildSettings);
+            }),
 
-    // Generates a CycloneDX Software Bill of Materials
-    Task("BillOfMaterials")
-        .IsDependentOn("Clean")
-        .Does<BuildState>(state => {
-            var cycloneDx = Context.Tools.Resolve("dotnet-CycloneDX.exe");
+        Test = Task("Test")
+            .IsDependentOn("Build")
+            .WithCriteria<BuildState>((c, state) => !state.SkipTests)
+            .Does<BuildState>(state => {
+                var testSettings = new DotNetTestSettings {
+                    Configuration = state.Configuration,
+                    NoBuild = true
+                };
 
-            var githubUser = Argument("github-username", "");
-            var githubToken = Argument("github-token", "");
+                var testResultsPrefix = state.ContinuousIntegrationBuild
+                    ? Guid.NewGuid().ToString()
+                    : null;
 
-            if (!string.IsNullOrWhiteSpace(githubUser) && string.IsNullOrWhiteSpace(githubToken)) {
-                throw new InvalidOperationException("When specifying a GitHub username for Bill of Materials generation you must also specify a personal access token using the '--github-token' argument.");
-            }
+                if (testResultsPrefix != null) {
+                    // We're using a build system; write the test results to a file so that they can be 
+                    // imported into the build system.
+                    testSettings.Loggers = new List<string> {
+                        $"trx;LogFilePrefix={testResultsPrefix}"
+                    };
+                }
 
-            if (!string.IsNullOrWhiteSpace(githubToken) && string.IsNullOrWhiteSpace(githubUser)) {
-                throw new InvalidOperationException("When specifying a GitHub personal access token for Bill of Materials generation you must also specify the username for the token using the '--github-username' argument.");
-            }
+                DotNetTest(state.SolutionName, testSettings);
 
-            var cycloneDxArgs = new ProcessArgumentBuilder()
-                .Append(state.SolutionName)
-                .Append("-o")
-                .Append("./artifacts/bom");
+                if (testResultsPrefix != null) {
+                    foreach (var testResultsFile in GetFiles($"./**/TestResults/{testResultsPrefix}*.trx")) {
+                        ImportTestResults(BuildSystem, "mstest", testResultsFile);
+                    }
+                }
+            }),
 
-            if (!string.IsNullOrWhiteSpace(githubUser)) {
-                cycloneDxArgs.Append("-gu").Append(githubUser);
-            }
+        Pack = Task("Pack")
+            .IsDependentOn("Test")
+            .Does<BuildState>(state => {
+                var buildSettings = new DotNetPackSettings {
+                    Configuration = state.Configuration,
+                    NoRestore = true,
+                    NoBuild = true,
+                    MSBuildSettings = new DotNetMSBuildSettings()
+                };
 
-            if (!string.IsNullOrWhiteSpace(githubToken)) {
-                cycloneDxArgs.Append("-gt").Append(githubToken);
-            }
+                ApplyMSBuildProperties(buildSettings.MSBuildSettings, state);
+                DotNetPack(state.SolutionName, buildSettings);
+            }),
 
-            StartProcess(cycloneDx, new ProcessSettings {
-                Arguments = cycloneDxArgs
-            });
-        });
+        BillOfMaterials = Task("BillOfMaterials")
+            .IsDependentOn("Clean")
+            .Does<BuildState>(state => {
+                var cycloneDx = Context.Tools.Resolve("dotnet-CycloneDX.exe");
+
+                var githubUser = Argument("github-username", "");
+                var githubToken = Argument("github-token", "");
+
+                if (!string.IsNullOrWhiteSpace(githubUser) && string.IsNullOrWhiteSpace(githubToken)) {
+                    throw new InvalidOperationException("When specifying a GitHub username for Bill of Materials generation you must also specify a personal access token using the '--github-token' argument.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(githubToken) && string.IsNullOrWhiteSpace(githubUser)) {
+                    throw new InvalidOperationException("When specifying a GitHub personal access token for Bill of Materials generation you must also specify the username for the token using the '--github-username' argument.");
+                }
+
+                var cycloneDxArgs = new ProcessArgumentBuilder()
+                    .Append(state.SolutionName)
+                    .Append("-o")
+                    .Append("./artifacts/bom");
+
+                if (!string.IsNullOrWhiteSpace(githubUser)) {
+                    cycloneDxArgs.Append("-gu").Append(githubUser);
+                }
+
+                if (!string.IsNullOrWhiteSpace(githubToken)) {
+                    cycloneDxArgs.Append("-gt").Append(githubToken);
+                }
+
+                StartProcess(cycloneDx, new ProcessSettings {
+                    Arguments = cycloneDxArgs
+                });
+            })
+
+    };
+
 }
 
 
@@ -276,9 +288,23 @@ public void WriteLogMessage(BuildSystem buildSystem, string message, bool newlin
     }
     else {
         if (newlineBeforeMessage) {
-            Console.WriteLine();
+            AnsiConsole.WriteLine();
         }
-        Console.WriteLine(message);
+        AnsiConsole.WriteLine(message);
+    }
+}
+
+
+public void WriteErrorMessage(BuildSystem buildSystem, string message, Exception error = null) {
+    var msg = message ?? error?.Message ?? "Build error";
+    if (buildSystem.IsRunningOnTeamCity) {
+        buildSystem.TeamCity.WriteStatus(msg, "ERROR", error?.ToString());
+    }
+    else {
+        AnsiConsole.WriteLine(msg);
+        if (error != null) {
+            AnsiConsole.WriteException(error);
+        }
     }
 }
 
