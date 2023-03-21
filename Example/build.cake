@@ -67,8 +67,10 @@ const string VersionFile = "./version.json";
 // Bootstrap build context and tasks.
 Bootstrap(DefaultSolutionFile, VersionFile);
 
-// Get the target that was specified.
-var target = GetTarget();
+Task("ErrorTest")
+    .Does<BuildState>(state => {
+        throw new NotImplementedException();
+    });
 
-// Run the target.
-RunTarget(target);
+// Run the provided target.
+Run();
