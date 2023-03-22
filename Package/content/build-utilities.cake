@@ -32,13 +32,7 @@ public string GetTarget() {
 
 // Runs the specified target.
 public void Run(string target = null) {
-    try {
-        RunTarget(target ?? GetTarget());
-    }
-    catch (Exception e) {
-        WriteErrorMessage(BuildSystem, null, e);
-        throw;
-    }
+    RunTarget(target ?? GetTarget());
 }
 
 
