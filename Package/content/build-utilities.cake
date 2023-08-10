@@ -3,7 +3,7 @@ using Spectre.Console;
 #addin nuget:?package=Cake.Git&version=3.0.0
 #addin nuget:?package=Cake.Json&version=7.0.1
 
-#tool dotnet:?package=CycloneDX&version=2.7.0
+#tool dotnet:?package=CycloneDX
 
 #load "build-state.cake"
 #load "task-definitions.cake"
