@@ -12,5 +12,10 @@
     <description>Extensions for the Cake build system.</description>
     <copyright>Copyright © 2021-2024 Graham Watts</copyright>
     <tags>Cake Script Build</tags>
+    <readme>README.md</readme>
   </metadata>
+  <files>
+    <file src="README.md" target="\" />
+    <file src="content\*" target="content" />
+  </files>
 </package>
