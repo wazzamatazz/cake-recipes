@@ -5,7 +5,7 @@
 
 # Dependencies
 
-`Jaahas.Cake.Extensions` assumes that you are using Cake v3.0.0 or later.
+`Jaahas.Cake.Extensions` assumes that you are using Cake v4.0.0 or later.
 
 
 # Getting Started
@@ -27,7 +27,7 @@ Update your `build.cake` file as follows:
 const string DefaultSolutionFile = "./MySolution.sln";
 const string VersionFile = "./version.json";
 
-#load nuget:?package=Jaahas.Cake.Extensions&version=1.6.2
+#load nuget:?package=Jaahas.Cake.Extensions&version=2.0.0
 
 // Bootstrap build context and tasks.
 Bootstrap(DefaultSolutionFile, VersionFile);
