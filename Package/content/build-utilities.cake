@@ -1,9 +1,10 @@
+using System.Text.Json;
+
 using Spectre.Console;
 
-#addin nuget:?package=Cake.Git&version=3.0.0
-#addin nuget:?package=Cake.Json&version=7.0.1
+#addin nuget:?package=Cake.Git&version=4.0.0
 
-#tool dotnet:?package=CycloneDX
+#tool dotnet:?package=CycloneDX&version=3.0.6
 
 #load "build-state.cake"
 #load "task-definitions.cake"
@@ -43,6 +44,12 @@ private string NormaliseMetadata(string s) {
 }
 
 
+private JsonElement ParseJsonFromFile(string filePath) {
+    var json = System.IO.File.ReadAllText(filePath);
+    return JsonSerializer.Deserialize<JsonElement>(json);
+}
+
+
 // Configures the build state using the specified default solution file and JSON version file.
 private void ConfigureBuildState(string solutionFilePath, string versionFilePath, string branchName) {
     // Constructs the build state object.
@@ -52,8 +59,10 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
             var state = new BuildState() {
                 SolutionName = Argument("project", solutionFilePath),
                 Target = context.TargetTask.Name,
-                Configuration = Argument("configuration", "Debug"),
-                ContinuousIntegrationBuild = HasArgument("ci") || !BuildSystem.IsLocalBuild,
+                Configuration = Argument("configuration", string.Equals(context.TargetTask.Name, "Pack", StringComparison.OrdinalIgnoreCase) 
+                    ? "Release" 
+                    : "Debug"),
+                ContinuousIntegrationBuild = !BuildSystem.IsLocalBuild || HasArgument("ci"),
                 Clean = HasArgument("clean"),
                 SkipTests = HasArgument("no-tests"),
                 SignOutput = HasArgument("sign-output"),
@@ -64,10 +73,18 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
 
             var versionJson = ParseJsonFromFile(versionFilePath);
 
-            var majorVersion = versionJson.Value<int>("Major");
-            var minorVersion = versionJson.Value<int>("Minor");
-            var patchVersion = versionJson.Value<int>("Patch");
-            var versionSuffix = versionJson.Value<string>("PreRelease");
+            var majorVersion = versionJson.TryGetProperty("Major", out var major) 
+                ? major.GetInt32() 
+                : 0;
+            var minorVersion = versionJson.TryGetProperty("Minor", out var minor) 
+                ? minor.GetInt32() 
+                : 0;
+            var patchVersion = versionJson.TryGetProperty("Patch", out var patch) 
+                ? patch.GetInt32() 
+                : 0;
+            var versionSuffix = versionJson.TryGetProperty("PreRelease", out var preRelease) 
+                ? preRelease.GetString() 
+                : null;
             
             state.MajorVersion = majorVersion;
             state.MinorVersion = minorVersion;
@@ -75,7 +92,7 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
 
             // Compute build and version numbers.
 
-            var buildCounter = Argument("build-counter", 0);
+            var buildCounter = Argument("build-counter", -1);
             var buildMetadata = Argument("build-metadata", "");
 
             // Set branch name. For Git repositories, we always use the friendly name of the 
@@ -88,29 +105,55 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
             }
             else {
                 branch = string.IsNullOrEmpty(branchName)
-                    ? "default"
+                    ? "main"
                     : branchName;
             }
             
+            // Assembly version: 
+            //   MAJOR.MINOR.0.0
             state.AssemblyVersion = $"{majorVersion}.{minorVersion}.0.0";
 
-            state.AssemblyFileVersion = $"{majorVersion}.{minorVersion}.{patchVersion}.{buildCounter}";
+            // File version: 
+            //   MAJOR.MINOR.PATCH.BUILD (build counter >= 0)
+            //   MAJOR.MINOR.PATCH.0 (build counter < 0)
+            state.AssemblyFileVersion = buildCounter >= 0
+                ? $"{majorVersion}.{minorVersion}.{patchVersion}.{buildCounter}"
+                : $"{majorVersion}.{minorVersion}.{patchVersion}.0";
 
-            state.InformationalVersion = string.IsNullOrWhiteSpace(versionSuffix)
-                ? $"{majorVersion}.{minorVersion}.{patchVersion}.{buildCounter}+{NormaliseMetadata(branch)}"
-                : $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}.{buildCounter}+{NormaliseMetadata(branch)}";
-
-            if (!string.IsNullOrWhiteSpace(buildMetadata)) {
-                state.InformationalVersion = string.Concat(state.InformationalVersion, ".", NormaliseMetadata(buildMetadata));
+            // Informational version:
+            //   MAJOR.MINOR.PATCH[-SUFFIX].[BUILD]+BRANCH[.METADATA]
+            var informationalVersionBuilder = new StringBuilder($"{majorVersion}.{minorVersion}.{patchVersion}");
+            if (!string.IsNullOrWhiteSpace(versionSuffix)) {
+                informationalVersionBuilder.Append($"-{versionSuffix}");
             }
+            if (buildCounter >= 0) {
+                informationalVersionBuilder.Append($".{buildCounter}");
+            }
+            informationalVersionBuilder.Append($"+{NormaliseMetadata(branch)}");
+            if (!string.IsNullOrWhiteSpace(buildMetadata)) {
+                informationalVersionBuilder.Append($".{NormaliseMetadata(buildMetadata)}");
+            }
+            state.InformationalVersion = informationalVersionBuilder.ToString();
 
+            // Package version:
+            //   MAJOR.MINOR.PATCH[-SUFFIX].[BUILD] (build counter >= 0)
+            //   MAJOR.MINOR.PATCH[-SUFFIX] (build counter < 0)
             state.PackageVersion = string.IsNullOrWhiteSpace(versionSuffix)
                 ? $"{majorVersion}.{minorVersion}.{patchVersion}"
-                : $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}.{buildCounter}";
+                : buildCounter >= 0
+                    ? $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}.{buildCounter}"
+                    : $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}";
 
+            // Build number:
+            //   MAJOR.MINOR.PATCH[-SUFFIX].[BUILD]+BRANCH (build counter >= 0)
+            //   MAJOR.MINOR.PATCH[-SUFFIX]+BRANCH (build counter < 0)
             state.BuildNumber = string.IsNullOrWhiteSpace(versionSuffix)
-                ? $"{majorVersion}.{minorVersion}.{patchVersion}.{buildCounter}+{branch}"
-                : $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}.{buildCounter}+{branch}";
+                ? buildCounter >= 0
+                    ? $"{majorVersion}.{minorVersion}.{patchVersion}.{buildCounter}+{branch}"
+                    : $"{majorVersion}.{minorVersion}.{patchVersion}+{branch}"
+                : buildCounter >= 0
+                    ? $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}.{buildCounter}+{branch}"
+                    : $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}+{branch}";
 
             var setBuildNumber = !string.Equals(state.Target, "Clean", StringComparison.OrdinalIgnoreCase) && !string.Equals(state.Target, "BillOfMaterials", StringComparison.OrdinalIgnoreCase);
             if (setBuildNumber) {
@@ -245,6 +288,7 @@ private void ConfigureTasks() {
                     .Append("./artifacts/bom");
 
                 if (!string.IsNullOrWhiteSpace(githubUser)) {
+                    cycloneDxArgs.Append("-egl"); // Enable GitHub licence resolution.
                     cycloneDxArgs.Append("-gu").Append(githubUser);
                 }
 
@@ -326,7 +370,11 @@ private void WriteTaskEndMessage(BuildSystem buildSystem, string description) {
 private void WriteBuildStateToLog(BuildSystem buildSystem, BuildState state) {
     WriteLogMessage(buildSystem, $"Solution Name: {state.SolutionName}", true);
     WriteLogMessage(buildSystem, $"Build Number: {state.BuildNumber}", false);
-    WriteLogMessage(buildSystem, $"Target: {state.Target}", false);
+    WriteLogMessage(buildSystem, $"Assembly Version: {state.AssemblyVersion}", true);
+    WriteLogMessage(buildSystem, $"File Version: {state.AssemblyFileVersion}", false);
+    WriteLogMessage(buildSystem, $"Informational Version: {state.InformationalVersion}", false);
+    WriteLogMessage(buildSystem, $"Package Version: {state.PackageVersion}", false);
+    WriteLogMessage(buildSystem, $"Target: {state.Target}", true);
     WriteLogMessage(buildSystem, $"Configuration: {state.Configuration}", false);
     WriteLogMessage(buildSystem, $"Clean: {state.RunCleanTarget}", false);
     WriteLogMessage(buildSystem, $"Skip Tests: {state.SkipTests}", false);
