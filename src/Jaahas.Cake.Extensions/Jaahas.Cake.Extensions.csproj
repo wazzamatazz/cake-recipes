@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <Description>Extensions for the Cake build system.</Description>
+    <Version>2.0.1</Version>
+    <Authors>Graham Watts</Authors>
+    <CopyrightStartYear>2021</CopyrightStartYear>
+    <PackageProjectUrl>https://github.com/wazzamatazz/cake-recipes</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>Cake Script Build</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <NoWarn>NU5128;$(NoWarn)</NoWarn>
+  </PropertyGroup>
+
+  <Choose>
+    <When Condition=" $([System.DateTime]::UtcNow.Year) &gt; $(CopyrightStartYear) ">
+      <PropertyGroup>
+        <Copyright>Copyright © $(CopyrightStartYear)-$([System.DateTime]::UtcNow.Year) $(Authors)</Copyright>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <Copyright>Copyright © $(CopyrightStartYear) $(Authors)</Copyright>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="content\**" Pack="true" PackagePath="content" />
+  </ItemGroup>
+
+</Project>
