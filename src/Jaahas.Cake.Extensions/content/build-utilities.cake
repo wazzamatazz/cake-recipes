@@ -13,8 +13,8 @@ public TaskDefinitions Targets { get; private set; }
 
 
 // Bootstraps the build using the specified default solution file and JSON version file.
-public void Bootstrap(string solutionFilePath, string versionFilePath) {
-    ConfigureBuildState(solutionFilePath, versionFilePath, GetBranchName());
+public void Bootstrap(string solutionFilePath, string versionFilePath, IEnumerable<string> containerProjects = null) {
+    ConfigureBuildState(solutionFilePath, versionFilePath, GetBranchName(), containerProjects);
     ConfigureTaskEventHandlers();
     ConfigureTasks();
 }
@@ -50,8 +50,16 @@ private JsonElement ParseJsonFromFile(string filePath) {
 }
 
 
+private bool UseReleaseConfigurationForTarget(string target) {
+    return string.Equals(target, "Pack", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(target, "Publish", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(target, "PublishContainer", StringComparison.OrdinalIgnoreCase) || 
+        string.Equals(target, "BillOfMaterials", StringComparison.OrdinalIgnoreCase);
+}
+
+
 // Configures the build state using the specified default solution file and JSON version file.
-private void ConfigureBuildState(string solutionFilePath, string versionFilePath, string branchName) {
+private void ConfigureBuildState(string solutionFilePath, string versionFilePath, string branchName, IEnumerable<string> containerProjects) {
     // Constructs the build state object.
     Setup<BuildState>(context => {
         try {
@@ -59,14 +67,15 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
             var state = new BuildState() {
                 SolutionName = Argument("project", solutionFilePath),
                 Target = context.TargetTask.Name,
-                Configuration = Argument("configuration", string.Equals(context.TargetTask.Name, "Pack", StringComparison.OrdinalIgnoreCase) 
+                Configuration = Argument("configuration", UseReleaseConfigurationForTarget(context.TargetTask.Name) 
                     ? "Release" 
                     : "Debug"),
                 ContinuousIntegrationBuild = !BuildSystem.IsLocalBuild || HasArgument("ci"),
-                Clean = HasArgument("clean"),
+                Clean = HasArgument("clean") || UseReleaseConfigurationForTarget(context.TargetTask.Name),
                 SkipTests = HasArgument("no-tests"),
                 SignOutput = HasArgument("sign-output"),
-                MSBuildProperties = HasArgument("property") ? Arguments<string>("property") : new List<string>()
+                MSBuildProperties = HasArgument("property") ? Arguments<string>("property") : new List<string>(),
+                PublishContainerProjects = containerProjects
             };
 
             // Get raw version numbers from JSON.
@@ -193,7 +202,7 @@ private void ConfigureTasks() {
         Clean = Task("Clean")
             .WithCriteria<BuildState>((c, state) => state.RunCleanTarget)
             .Does<BuildState>(state => {
-                foreach (var pattern in new [] { $"./src/**/bin/{state.Configuration}", "./artifacts/**", "./**/TestResults/**" }) {
+                foreach (var pattern in new [] { $"./src/**/bin/{state.Configuration}/**", $"./src/**/obj/{state.Configuration}/**", "./artifacts/**", "./**/TestResults/**" }) {
                     WriteLogMessage(BuildSystem, $"Cleaning directories: {pattern}");
                     CleanDirectories(pattern);
                 }
@@ -264,6 +273,69 @@ private void ConfigureTasks() {
 
                 ApplyMSBuildProperties(buildSettings.MSBuildSettings, state);
                 DotNetPack(state.SolutionName, buildSettings);
+            }),
+
+        Publish = Task("Publish")
+            .IsDependentOn("Test")
+            .Does<BuildState>(state => {
+                foreach (var projectFile in GetFiles("./**/*.*proj")) {
+                    var projectDir = projectFile.GetDirectory();
+
+                    foreach (var publishProfileFile in GetFiles(projectDir.FullPath + "/**/*.pubxml")) {
+                        WriteLogMessage(BuildSystem, $"Publishing project {projectFile.GetFilename()} using profile {publishProfileFile.GetFilename()}.");
+
+                        var buildSettings = new DotNetPublishSettings {
+                            Configuration = state.Configuration,
+                            NoRestore = true,
+                            NoBuild = false,
+                            MSBuildSettings = new DotNetMSBuildSettings()
+                        };
+
+                        ApplyMSBuildProperties(buildSettings.MSBuildSettings, state);
+                        buildSettings.MSBuildSettings.Properties["PublishProfile"] = new List<string> { publishProfileFile.FullPath };
+                        DotNetPublish(projectFile.FullPath, buildSettings);
+                    }
+                }
+            }),
+
+        PublishContainer = Task("PublishContainer")
+            .IsDependentOn("Test")
+            .Does<BuildState>(state => {
+                var containerImageProjects = state.PublishContainerProjects?.ToArray();
+
+                if (containerImageProjects == null || containerImageProjects.Length == 0) {
+                    throw new InvalidOperationException("No container projects were specified. Ensure that your Cake script specifies container projects when calling Bootstrap(). See https://github.com/wazzamatazz/cake-recipes#publishing-container-images for more information.");
+                }
+
+                var registry = Argument("container-registry", "");
+                var os = Argument("container-os", "linux");
+                var arch = Argument("container-arch", "x64");
+
+                foreach (var projectFile in GetFiles("./**/*.*proj")) {
+                    var projectDir = projectFile.GetDirectory();
+
+                    // Publish container images.
+                    if (!containerImageProjects.Contains(projectFile.GetFilenameWithoutExtension().ToString(), StringComparer.OrdinalIgnoreCase)) {
+                        continue;
+                    }
+            
+                    WriteLogMessage(BuildSystem, $"Publishing {os}-{arch} container image for project {projectFile.GetFilename()} to {(string.IsNullOrWhiteSpace(registry) ? "default registry" : registry)}");
+
+                    var buildSettings = new DotNetPublishSettings() { Configuration = state.Configuration }
+                        .WithArgumentCustomization(args => args.Append($"--os {os}").Append($"--arch {arch}"));
+
+                    buildSettings.MSBuildSettings = new DotNetMSBuildSettings();
+
+                    if (!string.IsNullOrWhiteSpace(registry)) {
+                        buildSettings.MSBuildSettings.WithProperty("ContainerRegistry", registry);
+                    }
+
+                    ApplyMSBuildProperties(buildSettings.MSBuildSettings, state);
+
+                    buildSettings.MSBuildSettings.WithTarget("PublishContainer");
+            
+                    DotNetPublish(projectFile.FullPath, buildSettings);
+                }
             }),
 
         BillOfMaterials = Task("BillOfMaterials")
