@@ -11,6 +11,10 @@ public readonly struct TaskDefinitions {
 
     public CakeTaskBuilder Pack { get; init; }
 
+    public CakeTaskBuilder Publish { get; init; }
+
+    public CakeTaskBuilder PublishContainer { get; init; }
+
     public CakeTaskBuilder BillOfMaterials { get; init; }
 
 }

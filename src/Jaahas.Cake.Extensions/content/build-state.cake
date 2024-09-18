@@ -52,6 +52,9 @@ public class BuildState {
     // MSBuild Version property value.
     public string PackageVersion { get; set; }
 
+    // Projects to build container images for when the PublishContainer target is run.
+    public IEnumerable<string> PublishContainerProjects { get; set; }
+
     // Additional MSBuild properties.
     public ICollection<string> MSBuildProperties { get; set; }
 

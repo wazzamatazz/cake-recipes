@@ -27,7 +27,7 @@ Update your `build.cake` file as follows:
 const string DefaultSolutionFile = "./MySolution.sln";
 const string VersionFile = "./version.json";
 
-#load nuget:?package=Jaahas.Cake.Extensions&version=2.0.0
+#load nuget:?package=Jaahas.Cake.Extensions&version=2.1.0
 
 // Bootstrap build context and tasks.
 Bootstrap(DefaultSolutionFile, VersionFile);
@@ -45,17 +45,55 @@ The following command line arguments are supported by the recipe:
 | -------- | ----------- | ------------- | ---------------|
 | `--branch=<FRIENDLY BRANCH NAME>` | The friendly name of the source control branch that is being built. Ignored for Git repositories. | | |
 | `--project=<PROJECT OR SOLUTION>` | The MSBuild project or solution to build. | `DefaultSolutionFile` constant in `build.cake` file | |
-| `--target=<TARGET>` | The Cake target to run. | `Test` | `Clean`, `Restore`, `Build`, `Test`, `Pack`, `BillOfMaterials` |
-| `--configuration=<CONFIGURATION>` | The MSBuild configuration to use. | `Debug`; `Release` when the `Pack` target is specified | Any configuration defined in the MSBuild solution |
+| `--target=<TARGET>` | The Cake target to run. | `Test` | `Clean`, `Restore`, `Build`, `Test`, `Pack`, `Publish`, `PublishContainer`, `BillOfMaterials` |
+| `--configuration=<CONFIGURATION>` | The MSBuild configuration to use. | `Debug`; `Release` when the `Pack`, `Publish` or `PublishContainer` target is specified | Any configuration defined in the MSBuild solution |
 | `--clean` | Specifies that this is a rebuild rather than an incremental build. All artifact, bin, and test output folders will be cleaned prior to running the specified target. | | |
 | `--no-tests` | Specifies that unit tests should be skipped, even if a target that depends on the `Test` target is specified. | | |
 | `--ci` | Forces continuous integration build mode. Not required if the build is being run by a supported continuous integration build system. | | |
 | `--sign-output` | Tells MSBuild that signing is required by setting the 'SignOutput' build property to 'True'. The signing implementation must be supplied by MSBuild. | | |
 | `--build-counter=<COUNTER>` | The build counter. This is used when generating version numbers for the build. | -1 | |
 | `--build-metadata=<METADATA>` | Additional build metadata that will be included in the information version number generated for compiled assemblies. | | |
-| `--property=<PROPERTY>` | Specifies an additional property to pass to MSBuild during `Build` and `Pack` targets. The value must be specified using a `<NAME>=<VALUE>` format e.g. `--property="NoWarn=CS1591"`. This argument can be specified multiple times. | | |
+| `--container-registry=<REGISTRY>` | The container registry to publish images to when calling the `PublishContainer` target. | Local Docker or Podman registry. | Any valid registry address. Registry authentication is managed by Docker or Podman. See [here](https://github.com/dotnet/sdk-container-builds/blob/main/docs/RegistryAuthentication.md) for more information. |
+| `--container-os=<OS>` | The container operating system to target. | `linux` | Any valid [.NET runtime identifier](https://learn.microsoft.com/en-us/dotnet/core/rid-catalog) operating system. |
+| `--container-arch=<ARCHITECTURE>` | The container processor architecture to use. | `x64` | Any valid [.NET runtime identifier](https://learn.microsoft.com/en-us/dotnet/core/rid-catalog) processor architecture. |
+| `--property=<PROPERTY>` | Specifies an additional property to pass to MSBuild. The value must be specified using a `<NAME>=<VALUE>` format e.g. `--property="NoWarn=CS1591"`. This argument can be specified multiple times. | | |
 | `--github-username=<USERNAME>` | Specifies the GitHub username to use when making authenticated API calls to GitHub while running the `BillOfMaterials` task. You must specify the `--github-token` argument as well when specifying this argument. | |
 | `--github-token=<PERSONAL ACCESS TOKEN>` | Specifies the GitHub personal access token to use when making authenticated API calls to GitHub while running the `BillOfMaterials` task. You must specify the `--github-username` argument as well when specifying this argument. | |
+
+
+# Targets
+
+The recipe supports the following targets (specified by the `--target` parameter passed to Cake):
+
+| Target | Description | Default Build Configuration |
+| ------ | ----------- | --------------------------- |
+| `Clean` | Cleans the `obj`, `bin`, `artifacts` and `TestResults` folders for the repository. | Debug |
+| `Restore` | Restores NuGet packages for the solution. | Debug |
+| `Build` | Builds the solution. | Debug |
+| `Test` | Runs unit tests for the solution. | Debug |
+| `Pack` | Creates NuGet packages for the solution. | Release |
+| `Publish` | Publishes any solution projects that define one or more `.pubxml` publish profiles under the project folder. | Release |
+| `PublishContainer` | Publishes container images for any solution projects that are registered as container projects. [See below](#publishing-container-images) for more information. | Release |
+| `BillOfMaterials` | Generates a Software Bill of Materials (SBOM) for the solution using [CycloneDX](https://github.com/CycloneDX/cyclonedx-dotnet). | Release |
+
+The Default Build Configuration specifies the default MSBuild configuration used when specifying a target and the `--configuration` parameter is not specified.
+
+
+# Publishing Container Images
+
+If your solution contains one or more projects that you want to publish container images for when the `PublishContainer` target is specified, you must include the names of the projects (without the project file extension) when calling the `Bootstrap()` method in your `build.cake` file. For example:
+
+```cake
+Bootstrap(
+    DefaultSolutionFile, 
+    VersionFile, 
+    containerProjects: new [] {
+        "MyFirstContainerProject",
+        "MySecondContainerProject"
+    });
+```
+
+Note that projects that publish container images can also define a `.pubxml` publish profile for publishing the image via the `Publish` target instead.
 
 
 # Version Numbers
