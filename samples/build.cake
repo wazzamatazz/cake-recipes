@@ -15,7 +15,7 @@ const string VersionFile = "./version.json";
 // --target=<TARGET>
 //   The Cake target to run. 
 //     Default: Test
-//     Possible Values: Clean, Restore, Build, Test, Pack, BillOfMaterials
+//     Possible Values: Clean, Restore, Build, Test, Pack, Publish, PublishContainer, BillOfMaterials
 //
 // --configuration=<CONFIGURATION>
 //   The MSBuild configuration to use. 
@@ -44,6 +44,18 @@ const string VersionFile = "./version.json";
 //   Additional build metadata that will be included in the informational version number generated 
 //   for compiled assemblies.
 //
+// --container-registry=<REGISTRY>
+//   The container registry to use when the PublishContainer target is run.
+//     Default: Local Docker or Podman daemon
+//
+// --container-os=<OS>
+//   The container operating system to use when the PublishContainer target is run.
+//     Default: linux
+//
+// --container-arch=<ARCHITECTURE>
+//   The container processor architecture to use when the PublishContainer target is run.
+//     Default: x64
+//
 // --property=<PROPERTY>
 //   Specifies an additional property to pass to MSBuild during Build and Pack targets. The value
 //   must be specified using a '<NAME>=<VALUE>' format e.g. --property="NoWarn=CS1591". This 
@@ -61,11 +73,12 @@ const string VersionFile = "./version.json";
 // 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#load ../Package/content/build-state.cake
-#load ../Package/content/build-utilities.cake
+#load ../src/Jaahas.Cake.Extensions/content/build-utilities.cake
 
 // Bootstrap build context and tasks.
-Bootstrap(DefaultSolutionFile, VersionFile);
+Bootstrap(DefaultSolutionFile, VersionFile, containerProjects: new [] {
+    "ExampleApp"
+});
 
 Task("ErrorTest")
     .Does<BuildState>(state => {
