@@ -286,8 +286,6 @@ private void ConfigureTasks() {
 
                         var buildSettings = new DotNetPublishSettings {
                             Configuration = state.Configuration,
-                            NoRestore = true,
-                            NoBuild = false,
                             MSBuildSettings = new DotNetMSBuildSettings()
                         };
 

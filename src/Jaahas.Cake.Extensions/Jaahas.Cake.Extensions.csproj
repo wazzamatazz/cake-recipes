@@ -11,7 +11,7 @@
 
   <PropertyGroup>
     <Description>Extensions for the Cake build system.</Description>
-    <Version>2.1.0</Version>
+    <Version>2.2.1</Version>
     <Authors>Graham Watts</Authors>
     <CopyrightStartYear>2021</CopyrightStartYear>
     <PackageProjectUrl>https://github.com/wazzamatazz/cake-recipes</PackageProjectUrl>
