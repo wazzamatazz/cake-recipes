@@ -2,9 +2,7 @@ using System.Text.Json;
 
 using Spectre.Console;
 
-#addin nuget:?package=Cake.Git&version=4.0.0
-
-#tool dotnet:?package=CycloneDX&version=3.0.8
+#tool dotnet:?package=CycloneDX&version=4.1.0
 
 #load "build-state.cake"
 #load "task-definitions.cake"
@@ -21,7 +19,25 @@ public void Bootstrap(string solutionFilePath, string versionFilePath, IEnumerab
 
 
 private string GetBranchName() {
-    return Argument("branch", "");
+    // For Git repositories, we always use the name of the current branch, regardless of what was 
+    // specified as the branch argument.
+    var currentDir = DirectoryPath.FromString(".");
+    return GetGitBranchName(currentDir) ?? Argument("branch", "main");
+}
+
+
+private string GetGitBranchName(DirectoryPath dir) {
+    var settings = new ProcessSettings() {
+        RedirectStandardOutput = true,
+        Arguments = "rev-parse --abbrev-ref HEAD"
+    };
+
+    using (var process = StartAndReturnProcess("git", settings)) {
+        process.WaitForExit();
+        return process.GetExitCode() == 0
+            ? process.GetStandardOutput().FirstOrDefault()
+            : null;
+    }
 }
 
 
@@ -104,20 +120,6 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
             var buildCounter = Argument("build-counter", -1);
             var buildMetadata = Argument("build-metadata", "");
 
-            // Set branch name. For Git repositories, we always use the friendly name of the 
-            // current branch, regardless of what was specified in the branchName parameter.
-            string branch;
-
-            var currentDir = DirectoryPath.FromString(".");
-            if (GitIsValidRepository(currentDir)) {
-                branch = GitBranchCurrent(currentDir).FriendlyName;
-            }
-            else {
-                branch = string.IsNullOrEmpty(branchName)
-                    ? "main"
-                    : branchName;
-            }
-            
             // Assembly version: 
             //   MAJOR.MINOR.0.0
             state.AssemblyVersion = $"{majorVersion}.{minorVersion}.0.0";
@@ -138,7 +140,7 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
             if (buildCounter >= 0) {
                 informationalVersionBuilder.Append($".{buildCounter}");
             }
-            informationalVersionBuilder.Append($"+{NormaliseMetadata(branch)}");
+            informationalVersionBuilder.Append($"+{NormaliseMetadata(branchName)}");
             if (!string.IsNullOrWhiteSpace(buildMetadata)) {
                 informationalVersionBuilder.Append($".{NormaliseMetadata(buildMetadata)}");
             }
@@ -158,11 +160,11 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
             //   MAJOR.MINOR.PATCH[-SUFFIX]+BRANCH (build counter < 0)
             state.BuildNumber = string.IsNullOrWhiteSpace(versionSuffix)
                 ? buildCounter >= 0
-                    ? $"{majorVersion}.{minorVersion}.{patchVersion}.{buildCounter}+{branch}"
-                    : $"{majorVersion}.{minorVersion}.{patchVersion}+{branch}"
+                    ? $"{majorVersion}.{minorVersion}.{patchVersion}.{buildCounter}+{branchName}"
+                    : $"{majorVersion}.{minorVersion}.{patchVersion}+{branchName}"
                 : buildCounter >= 0
-                    ? $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}.{buildCounter}+{branch}"
-                    : $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}+{branch}";
+                    ? $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}.{buildCounter}+{branchName}"
+                    : $"{majorVersion}.{minorVersion}.{patchVersion}-{versionSuffix}+{branchName}";
 
             var setBuildNumber = !string.Equals(state.Target, "Clean", StringComparison.OrdinalIgnoreCase) && !string.Equals(state.Target, "BillOfMaterials", StringComparison.OrdinalIgnoreCase);
             if (setBuildNumber) {
