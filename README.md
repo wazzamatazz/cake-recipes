@@ -27,7 +27,7 @@ Update your `build.cake` file as follows:
 const string DefaultSolutionFile = "./MySolution.sln";
 const string VersionFile = "./version.json";
 
-#load nuget:?package=Jaahas.Cake.Extensions&version=2.1.0
+#load nuget:?package=Jaahas.Cake.Extensions&version=3.0.0
 
 // Bootstrap build context and tasks.
 Bootstrap(DefaultSolutionFile, VersionFile);
@@ -55,7 +55,7 @@ The following command line arguments are supported by the recipe:
 | `--build-metadata=<METADATA>` | Additional build metadata that will be included in the information version number generated for compiled assemblies. | | |
 | `--container-registry=<REGISTRY>` | The container registry to publish images to when calling the `PublishContainer` target. | Local Docker or Podman registry. | Any valid registry address. Registry authentication is managed by Docker or Podman. See [here](https://github.com/dotnet/sdk-container-builds/blob/main/docs/RegistryAuthentication.md) for more information. |
 | `--container-os=<OS>` | The container operating system to target. | `linux` | Any valid [.NET runtime identifier](https://learn.microsoft.com/en-us/dotnet/core/rid-catalog) operating system. |
-| `--container-arch=<ARCHITECTURE>` | The container processor architecture to use. | `x64` | Any valid [.NET runtime identifier](https://learn.microsoft.com/en-us/dotnet/core/rid-catalog) processor architecture. |
+| `--container-arch=<ARCHITECTURE>` | The container processor architecture to use. | The architecture for the operating system. | Any valid [.NET runtime identifier](https://learn.microsoft.com/en-us/dotnet/core/rid-catalog) processor architecture. |
 | `--property=<PROPERTY>` | Specifies an additional property to pass to MSBuild. The value must be specified using a `<NAME>=<VALUE>` format e.g. `--property="NoWarn=CS1591"`. This argument can be specified multiple times. | | |
 | `--github-username=<USERNAME>` | Specifies the GitHub username to use when making authenticated API calls to GitHub while running the `BillOfMaterials` task. You must specify the `--github-token` argument as well when specifying this argument. | |
 | `--github-token=<PERSONAL ACCESS TOKEN>` | Specifies the GitHub personal access token to use when making authenticated API calls to GitHub while running the `BillOfMaterials` task. You must specify the `--github-username` argument as well when specifying this argument. | |
