@@ -53,8 +53,9 @@ const string VersionFile = "./version.json";
 //     Default: linux
 //
 // --container-arch=<ARCHITECTURE>
-//   The container processor architecture to use when the PublishContainer target is run.
-//     Default: x64
+//   The container processor architecture to use when the PublishContainer target is run (e.g. 
+//   arm64, x64).
+//     Default: architecture for the current OS
 //
 // --property=<PROPERTY>
 //   Specifies an additional property to pass to MSBuild during Build and Pack targets. The value
