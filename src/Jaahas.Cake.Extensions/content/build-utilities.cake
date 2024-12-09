@@ -309,7 +309,7 @@ private void ConfigureTasks() {
 
                 var registry = Argument("container-registry", "");
                 var os = Argument("container-os", "linux");
-                var arch = Argument("container-arch", "x64");
+                var arch = Argument("container-arch", System.Runtime.InteropServices.RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant());
 
                 foreach (var projectFile in GetFiles("./**/*.*proj")) {
                     var projectDir = projectFile.GetDirectory();
