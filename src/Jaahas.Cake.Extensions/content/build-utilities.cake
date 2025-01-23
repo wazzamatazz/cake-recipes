@@ -486,6 +486,9 @@ public static void ApplyMSBuildProperties(DotNetMSBuildSettings settings, BuildS
     }
 
     // Set version numbers.
+    settings.Properties["MajorVersion"] = new List<string> { state.MajorVersion.ToString() };
+    settings.Properties["MinorVersion"] = new List<string> { state.MinorVersion.ToString() };
+    settings.Properties["PatchVersion"] = new List<string> { state.PatchVersion.ToString() };
     settings.Properties["AssemblyVersion"] = new List<string> { state.AssemblyVersion };
     settings.Properties["FileVersion"] = new List<string> { state.AssemblyFileVersion };
     settings.Properties["Version"] = new List<string> { state.PackageVersion };
