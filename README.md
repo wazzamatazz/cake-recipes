@@ -27,7 +27,7 @@ Update your `build.cake` file as follows:
 const string DefaultSolutionFile = "./MySolution.sln";
 const string VersionFile = "./version.json";
 
-#load nuget:?package=Jaahas.Cake.Extensions&version=3.0.0
+#load nuget:?package=Jaahas.Cake.Extensions&version=4.0.0
 
 // Bootstrap build context and tasks.
 Bootstrap(DefaultSolutionFile, VersionFile);
@@ -104,8 +104,8 @@ If your solution contains one or more projects that you want to publish containe
 
 ```cake
 Bootstrap(
-    DefaultSolutionFile, 
-    VersionFile, 
+    DefaultSolutionFile,
+    VersionFile,
     containerProjects: new [] {
         "MyFirstContainerProject",
         "MySecondContainerProject"
