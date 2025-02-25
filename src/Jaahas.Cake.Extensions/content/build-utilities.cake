@@ -2,7 +2,7 @@ using System.Text.Json;
 
 using Spectre.Console;
 
-#tool dotnet:?package=CycloneDX&version=4.1.0
+#tool dotnet:?package=CycloneDX&version=5.0.1
 
 #load "build-state.cake"
 #load "task-definitions.cake"
@@ -19,7 +19,7 @@ public void Bootstrap(string solutionFilePath, string versionFilePath, IEnumerab
 
 
 private string GetBranchName() {
-    // For Git repositories, we always use the name of the current branch, regardless of what was 
+    // For Git repositories, we always use the name of the current branch, regardless of what was
     // specified as the branch argument.
     var currentDir = DirectoryPath.FromString(".");
     return GetGitBranchName(currentDir) ?? Argument("branch", "main");
@@ -69,7 +69,7 @@ private JsonElement ParseJsonFromFile(string filePath) {
 private bool UseReleaseConfigurationForTarget(string target) {
     return string.Equals(target, "Pack", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(target, "Publish", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(target, "PublishContainer", StringComparison.OrdinalIgnoreCase) || 
+        string.Equals(target, "PublishContainer", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(target, "BillOfMaterials", StringComparison.OrdinalIgnoreCase);
 }
 
@@ -83,8 +83,8 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
             var state = new BuildState() {
                 SolutionName = Argument("project", solutionFilePath),
                 Target = context.TargetTask.Name,
-                Configuration = Argument("configuration", UseReleaseConfigurationForTarget(context.TargetTask.Name) 
-                    ? "Release" 
+                Configuration = Argument("configuration", UseReleaseConfigurationForTarget(context.TargetTask.Name)
+                    ? "Release"
                     : "Debug"),
                 ContinuousIntegrationBuild = !BuildSystem.IsLocalBuild || HasArgument("ci"),
                 Clean = HasArgument("clean") || UseReleaseConfigurationForTarget(context.TargetTask.Name),
@@ -98,19 +98,19 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
 
             var versionJson = ParseJsonFromFile(versionFilePath);
 
-            var majorVersion = versionJson.TryGetProperty("Major", out var major) 
-                ? major.GetInt32() 
+            var majorVersion = versionJson.TryGetProperty("Major", out var major)
+                ? major.GetInt32()
                 : 0;
-            var minorVersion = versionJson.TryGetProperty("Minor", out var minor) 
-                ? minor.GetInt32() 
+            var minorVersion = versionJson.TryGetProperty("Minor", out var minor)
+                ? minor.GetInt32()
                 : 0;
-            var patchVersion = versionJson.TryGetProperty("Patch", out var patch) 
-                ? patch.GetInt32() 
+            var patchVersion = versionJson.TryGetProperty("Patch", out var patch)
+                ? patch.GetInt32()
                 : 0;
-            var versionSuffix = versionJson.TryGetProperty("PreRelease", out var preRelease) 
-                ? preRelease.GetString() 
+            var versionSuffix = versionJson.TryGetProperty("PreRelease", out var preRelease)
+                ? preRelease.GetString()
                 : null;
-            
+
             state.MajorVersion = majorVersion;
             state.MinorVersion = minorVersion;
             state.PatchVersion = patchVersion;
@@ -120,11 +120,11 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
             var buildCounter = Argument("build-counter", -1);
             var buildMetadata = Argument("build-metadata", "");
 
-            // Assembly version: 
+            // Assembly version:
             //   MAJOR.MINOR.0.0
             state.AssemblyVersion = $"{majorVersion}.{minorVersion}.0.0";
 
-            // File version: 
+            // File version:
             //   MAJOR.MINOR.PATCH.BUILD (build counter >= 0)
             //   MAJOR.MINOR.PATCH.0 (build counter < 0)
             state.AssemblyFileVersion = buildCounter >= 0
@@ -244,7 +244,7 @@ private void ConfigureTasks() {
                     : null;
 
                 if (testResultsPrefix != null) {
-                    // We're using a build system; write the test results to a file so that they can be 
+                    // We're using a build system; write the test results to a file so that they can be
                     // imported into the build system.
                     testSettings.Loggers = new List<string> {
                         $"trx;LogFilePrefix={testResultsPrefix}"
@@ -318,7 +318,7 @@ private void ConfigureTasks() {
                     if (!containerImageProjects.Contains(projectFile.GetFilenameWithoutExtension().ToString(), StringComparer.OrdinalIgnoreCase)) {
                         continue;
                     }
-            
+
                     WriteLogMessage(BuildSystem, $"Publishing {os}-{arch} container image for project {projectFile.GetFilename()} to {(string.IsNullOrWhiteSpace(registry) ? "default registry" : registry)}");
 
                     var buildSettings = new DotNetPublishSettings() { Configuration = state.Configuration }
@@ -333,7 +333,7 @@ private void ConfigureTasks() {
                     ApplyMSBuildProperties(buildSettings.MSBuildSettings, state);
 
                     buildSettings.MSBuildSettings.WithTarget("PublishContainer");
-            
+
                     DotNetPublish(projectFile.FullPath, buildSettings);
                 }
             }),
@@ -475,7 +475,7 @@ public static void ApplyMSBuildProperties(DotNetMSBuildSettings settings, BuildS
         }
     }
 
-    // Specify if this is a CI build. 
+    // Specify if this is a CI build.
     if (state.ContinuousIntegrationBuild) {
         settings.Properties["ContinuousIntegrationBuild"] = new List<string> { "True" };
     }
