@@ -341,7 +341,9 @@ private void ConfigureTasks() {
         BillOfMaterials = Task("BillOfMaterials")
             .IsDependentOn("Clean")
             .Does<BuildState>(state => {
-                var cycloneDx = Context.Tools.Resolve("dotnet-CycloneDX.exe");
+                var cycloneDx = Context.Tools.Resolve(IsRunningOnWindows()
+                    ? "dotnet-CycloneDX.exe"
+                    : "dotnet-CycloneDX");
 
                 var githubUser = Argument("github-username", "");
                 var githubToken = Argument("github-token", "");
