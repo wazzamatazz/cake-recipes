@@ -308,8 +308,7 @@ private void ConfigureTasks() {
                 }
 
                 var registry = Argument("container-registry", "");
-                var os = Argument("container-os", "linux");
-                var arch = Argument("container-arch", System.Runtime.InteropServices.RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant());
+                var rid = Argument("container-rid", "");
 
                 foreach (var projectFile in GetFiles("./**/*.*proj")) {
                     var projectDir = projectFile.GetDirectory();
@@ -319,15 +318,18 @@ private void ConfigureTasks() {
                         continue;
                     }
 
-                    WriteLogMessage(BuildSystem, $"Publishing {os}-{arch} container image for project {projectFile.GetFilename()} to {(string.IsNullOrWhiteSpace(registry) ? "default registry" : registry)}");
+                    WriteLogMessage(BuildSystem, $"Publishing container image for project {projectFile.GetFilename()} to {(string.IsNullOrWhiteSpace(registry) ? "default registry" : registry)}");
 
-                    var buildSettings = new DotNetPublishSettings() { Configuration = state.Configuration }
-                        .WithArgumentCustomization(args => args.Append($"--os {os}").Append($"--arch {arch}"));
+                    var buildSettings = new DotNetPublishSettings() { Configuration = state.Configuration };
 
                     buildSettings.MSBuildSettings = new DotNetMSBuildSettings();
 
                     if (!string.IsNullOrWhiteSpace(registry)) {
                         buildSettings.MSBuildSettings.WithProperty("ContainerRegistry", registry);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(rid)) {
+                        buildSettings.MSBuildSettings.WithProperty("ContainerRuntimeIdentifier", rid);
                     }
 
                     ApplyMSBuildProperties(buildSettings.MSBuildSettings, state);

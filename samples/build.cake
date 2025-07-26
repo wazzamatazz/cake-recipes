@@ -48,14 +48,9 @@ const string VersionFile = "./version.json";
 //   The container registry to use when the PublishContainer target is run.
 //     Default: Local Docker or Podman daemon
 //
-// --container-os=<OS>
-//   The container operating system to use when the PublishContainer target is run.
-//     Default: linux
-//
-// --container-arch=<ARCHITECTURE>
-//   The container processor architecture to use when the PublishContainer target is run (e.g. 
-//   arm64, x64).
-//     Default: architecture for the current OS
+// --container-rid=<OS>
+//   The runtime identifier to build the container image for when calling the PublishContainer target.
+//     Default: Inferred from the RuntimeIdentifier or RuntimeIdentifiers build property
 //
 // --property=<PROPERTY>
 //   Specifies an additional property to pass to MSBuild during Build and Pack targets. The value
