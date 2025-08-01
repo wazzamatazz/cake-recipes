@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/common/">
+    <File Path=".gitignore" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Jaahas.Cake.Extensions/Jaahas.Cake.Extensions.csproj" />
+  </Folder>
+</Solution>
