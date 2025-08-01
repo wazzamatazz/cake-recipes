@@ -102,23 +102,28 @@ public string GetTarget() {
 public void Run(string profileName = null) {
     var profile = profileName ?? GetProfile();
     
-    try {
-        var buildProfile = BuildProfiles.GetProfile(profile, CustomProfiles);
-        var buildState = Context.Data.Get<BuildState>();
+    // Create and run a default task that executes the profile
+    Task("ProfileRunner")
+        .Does<BuildState>(state => {
+            try {
+                var buildProfile = BuildProfiles.GetProfile(profile, CustomProfiles);
+                
+                WriteLogMessage(BuildSystem, $"Available profiles: {string.Join(", ", BuildProfiles.GetAvailableProfiles(CustomProfiles))}");
+                
+                var executor = new ProfileExecutor(Context, Targets);
+                executor.ExecuteProfile(buildProfile, state);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Unknown build profile")) {
+                WriteErrorMessage(BuildSystem, ex.Message);
+                throw;
+            }
+        });
         
-        WriteLogMessage(BuildSystem, $"Available profiles: {string.Join(", ", BuildProfiles.GetAvailableProfiles(CustomProfiles))}");
-        
-        var executor = new ProfileExecutor(Context, Targets);
-        executor.ExecuteProfile(buildProfile, buildState);
-    }
-    catch (InvalidOperationException ex) when (ex.Message.Contains("Unknown build profile")) {
-        WriteErrorMessage(BuildSystem, ex.Message);
-        throw;
-    }
+    RunTarget("ProfileRunner");
 }
 
 // Runs the specified target (for backward compatibility).
-public void RunTarget(string target) {
+public void RunLegacyTarget(string target) {
     Information($"Legacy target mode: {target}. Consider using profile-based execution instead.");
     RunTarget(target);
 }
