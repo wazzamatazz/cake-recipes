@@ -21,23 +21,23 @@ public class ProfileExecutor
         if (state == null)
             throw new ArgumentNullException(nameof(state));
             
-        WriteLogMessage(_context.BuildSystem(), $"Executing build profile: {profile.Name}");
-        WriteLogMessage(_context.BuildSystem(), $"Profile description: {profile.Description}", false);
-        WriteLogMessage(_context.BuildSystem(), $"Tasks to execute: {string.Join(" → ", profile.Tasks)}", false);
+        _context.Information($"Executing build profile: {profile.Name}");
+        _context.Information($"Profile description: {profile.Description}");
+        _context.Information($"Tasks to execute: {string.Join(" → ", profile.Tasks)}");
         
         foreach (var taskName in profile.Tasks)
         {
             if (ShouldSkipTask(taskName, profile, state))
             {
-                WriteLogMessage(_context.BuildSystem(), $"Skipping task: {taskName}");
+                _context.Information($"Skipping task: {taskName}");
                 continue;
             }
             
-            WriteLogMessage(_context.BuildSystem(), $"Executing task: {taskName}");
+            _context.Information($"Executing task: {taskName}");
             ExecuteTask(taskName, state);
         }
         
-        WriteLogMessage(_context.BuildSystem(), $"Successfully completed build profile: {profile.Name}");
+        _context.Information($"Successfully completed build profile: {profile.Name}");
     }
     
     private bool ShouldSkipTask(string taskName, BuildProfile profile, BuildState state)
@@ -59,7 +59,7 @@ public class ProfileExecutor
         if (taskName == "PublishContainer" && 
             (state.PublishContainerProjects == null || !state.PublishContainerProjects.Any()))
         {
-            WriteLogMessage(_context.BuildSystem(), "No container projects specified. Use Bootstrap() containerProjects parameter to enable container publishing.");
+            _context.Information("No container projects specified. Use Bootstrap() containerProjects parameter to enable container publishing.");
             return true;
         }
         
@@ -87,7 +87,7 @@ public class ProfileExecutor
         }
         catch (Exception ex)
         {
-            WriteErrorMessage(_context.BuildSystem(), $"Task '{taskName}' failed", ex);
+            _context.Error($"Task '{taskName}' failed: {ex.Message}");
             throw;
         }
     }
@@ -129,37 +129,37 @@ public class ProfileExecutor
     {
         if (!state.RunCleanTarget) return;
         
-        WriteTaskStartMessage(_context.BuildSystem(), "Clean");
+        _context.Information("Starting Clean task");
         try
         {
             foreach (var pattern in new [] { $"./src/**/bin/{state.Configuration}/**", $"./src/**/obj/{state.Configuration}/**", "./artifacts/**", "./**/TestResults/**" })
             {
-                WriteLogMessage(_context.BuildSystem(), $"Cleaning directories: {pattern}", false);
+                _context.Information($"Cleaning directories: {pattern}");
                 _context.CleanDirectories(pattern);
             }
         }
         finally
         {
-            WriteTaskEndMessage(_context.BuildSystem(), "Clean");
+            _context.Information("Completed Clean task");
         }
     }
     
     private void ExecuteRestoreTask(BuildState state)
     {
-        WriteTaskStartMessage(_context.BuildSystem(), "Restore");
+        _context.Information("Starting Restore task");
         try
         {
             _context.DotNetRestore(state.SolutionName);
         }
         finally
         {
-            WriteTaskEndMessage(_context.BuildSystem(), "Restore");
+            _context.Information("Completed Restore task");
         }
     }
     
     private void ExecuteBuildTask(BuildState state)
     {
-        WriteTaskStartMessage(_context.BuildSystem(), "Build");
+        _context.Information("Starting Build task");
         try
         {
             var buildSettings = new DotNetBuildSettings {
@@ -174,7 +174,7 @@ public class ProfileExecutor
         }
         finally
         {
-            WriteTaskEndMessage(_context.BuildSystem(), "Build");
+            _context.Information("Completed Build task");
         }
     }
     
@@ -182,7 +182,7 @@ public class ProfileExecutor
     {
         if (state.SkipTests) return;
         
-        WriteTaskStartMessage(_context.BuildSystem(), "Test");
+        _context.Information("Starting Test task");
         try
         {
             var testSettings = new DotNetTestSettings {
@@ -211,20 +211,21 @@ public class ProfileExecutor
                 {
                     foreach (var testResultsFile in _context.GetFiles($"./**/TestResults/{testResultsPrefix}*.trx"))
                     {
-                        ImportTestResults(_context.BuildSystem(), "mstest", testResultsFile);
+                        // Let the global task handle test results import
+                        _context.Information($"Test results written to: {testResultsFile}");
                     }
                 }
             }
         }
         finally
         {
-            WriteTaskEndMessage(_context.BuildSystem(), "Test");
+            _context.Information("Completed Test task");
         }
     }
     
     private void ExecutePackTask(BuildState state)
     {
-        WriteTaskStartMessage(_context.BuildSystem(), "Pack");
+        _context.Information("Starting Pack task");
         try
         {
             var buildSettings = new DotNetPackSettings {
@@ -239,13 +240,13 @@ public class ProfileExecutor
         }
         finally
         {
-            WriteTaskEndMessage(_context.BuildSystem(), "Pack");
+            _context.Information("Completed Pack task");
         }
     }
     
     private void ExecutePublishTask(BuildState state)
     {
-        WriteTaskStartMessage(_context.BuildSystem(), "Publish");
+        _context.Information("Starting Publish task");
         try
         {
             foreach (var projectFile in _context.GetFiles("./**/*.*proj"))
@@ -254,7 +255,7 @@ public class ProfileExecutor
 
                 foreach (var publishProfileFile in _context.GetFiles(projectDir.FullPath + "/**/*.pubxml"))
                 {
-                    WriteLogMessage(_context.BuildSystem(), $"Publishing project {projectFile.GetFilename()} using profile {publishProfileFile.GetFilename()}.", false);
+                    _context.Information($"Publishing project {projectFile.GetFilename()} using profile {publishProfileFile.GetFilename()}.");
 
                     var buildSettings = new DotNetPublishSettings {
                         Configuration = state.Configuration,
@@ -269,13 +270,13 @@ public class ProfileExecutor
         }
         finally
         {
-            WriteTaskEndMessage(_context.BuildSystem(), "Publish");
+            _context.Information("Completed Publish task");
         }
     }
     
     private void ExecutePublishContainerTask(BuildState state)
     {
-        WriteTaskStartMessage(_context.BuildSystem(), "PublishContainer");
+        _context.Information("Starting PublishContainer task");
         try
         {
             var containerImageProjects = state.PublishContainerProjects?.ToArray();
@@ -296,7 +297,7 @@ public class ProfileExecutor
                     continue;
                 }
 
-                WriteLogMessage(_context.BuildSystem(), $"Publishing container image for project {projectFile.GetFilename()} to {(string.IsNullOrWhiteSpace(registry) ? "default registry" : registry)}", false);
+                _context.Information($"Publishing container image for project {projectFile.GetFilename()} to {(string.IsNullOrWhiteSpace(registry) ? "default registry" : registry)}");
 
                 var buildSettings = new DotNetPublishSettings() { Configuration = state.Configuration };
                 buildSettings.MSBuildSettings = new DotNetMSBuildSettings();
@@ -323,13 +324,13 @@ public class ProfileExecutor
         }
         finally
         {
-            WriteTaskEndMessage(_context.BuildSystem(), "PublishContainer");
+            _context.Information("Completed PublishContainer task");
         }
     }
     
     private void ExecuteBillOfMaterialsTask(BuildState state)
     {
-        WriteTaskStartMessage(_context.BuildSystem(), "BillOfMaterials");
+        _context.Information("Starting BillOfMaterials task");
         try
         {
             var cycloneDx = _context.Tools.Resolve(_context.IsRunningOnWindows()
@@ -371,7 +372,7 @@ public class ProfileExecutor
         }
         finally
         {
-            WriteTaskEndMessage(_context.BuildSystem(), "BillOfMaterials");
+            _context.Information("Completed BillOfMaterials task");
         }
     }
     

@@ -47,11 +47,24 @@ private string GetGitBranchName(DirectoryPath dir) {
 
 // Gets the profile to run (first positional argument, or "test" as default).
 public string GetProfile() {
-    // Try to get the first positional argument as the profile name
+    // Check if profile is specified via --profile argument first
+    var profileArg = Argument("profile", "");
+    if (!string.IsNullOrWhiteSpace(profileArg)) {
+        return profileArg;
+    }
+    
+    // Try to detect profile from command line arguments
     var args = System.Environment.GetCommandLineArgs();
     for (int i = 1; i < args.Length; i++) {
         var arg = args[i];
-        if (!arg.StartsWith("--") && !arg.StartsWith("-") && arg != "build.cake") {
+        // Skip known non-profile arguments
+        if (arg.StartsWith("--") || arg.StartsWith("-") || arg.EndsWith(".cake") || arg.EndsWith(".dll") || arg == "cake") {
+            continue;
+        }
+        
+        // Check if this might be a profile name by seeing if it's a known profile
+        var availableProfiles = BuildProfiles.GetAvailableProfiles(CustomProfiles);
+        if (availableProfiles.Any(p => string.Equals(p, arg, StringComparison.OrdinalIgnoreCase))) {
             return arg;
         }
     }
@@ -106,10 +119,8 @@ public void Run(string profileName = null) {
 
 // Runs the specified target (for backward compatibility).
 public void RunTarget(string target) {
-    Context.CakeEngine.RegisterTask(target).Does(() => {
-        WriteLogMessage(BuildSystem, $"Legacy target mode: {target}. Consider using profile-based execution instead.");
-    });
-    Context.CakeEngine.RunTarget(target);
+    Information($"Legacy target mode: {target}. Consider using profile-based execution instead.");
+    RunTarget(target);
 }
 
 
@@ -370,8 +381,6 @@ private void ConfigureTasks() {
             }),
 
         Build = Task("Build")
-            .IsDependentOn("Clean")
-            .IsDependentOn("Restore")
             .Does<BuildState>(state => {
                 var buildSettings = new DotNetBuildSettings {
                     Configuration = state.Configuration,
@@ -385,7 +394,6 @@ private void ConfigureTasks() {
             }),
 
         Test = Task("Test")
-            .IsDependentOn("Build")
             .WithCriteria<BuildState>((c, state) => !state.SkipTests)
             .Does<BuildState>(state => {
                 var testSettings = new DotNetTestSettings {
@@ -418,7 +426,6 @@ private void ConfigureTasks() {
             }),
 
         Pack = Task("Pack")
-            .IsDependentOn("Test")
             .Does<BuildState>(state => {
                 var buildSettings = new DotNetPackSettings {
                     Configuration = state.Configuration,
@@ -432,7 +439,6 @@ private void ConfigureTasks() {
             }),
 
         Publish = Task("Publish")
-            .IsDependentOn("Test")
             .Does<BuildState>(state => {
                 foreach (var projectFile in GetFiles("./**/*.*proj")) {
                     var projectDir = projectFile.GetDirectory();
@@ -453,7 +459,6 @@ private void ConfigureTasks() {
             }),
 
         PublishContainer = Task("PublishContainer")
-            .IsDependentOn("Test")
             .Does<BuildState>(state => {
                 var containerImageProjects = state.PublishContainerProjects?.ToArray();
 
@@ -495,7 +500,6 @@ private void ConfigureTasks() {
             }),
 
         BillOfMaterials = Task("BillOfMaterials")
-            .IsDependentOn("Clean")
             .Does<BuildState>(state => {
                 var cycloneDx = Context.Tools.Resolve(IsRunningOnWindows()
                     ? "dotnet-CycloneDX.exe"

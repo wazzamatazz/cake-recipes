@@ -1,72 +1,80 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Use build.ps1 or build.sh to run the build script. Command line arguments are documented below.
+// Use build.ps1 or build.sh to run the build script with a profile. Examples:
+//   ./build.sh test        - Run development build with tests
+//   ./build.sh dev         - Fast development build without tests
+//   ./build.sh release     - Complete release build with all artifacts
+//   ./build.sh containers  - Build and publish container images
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const string DefaultSolutionFile = "./Example.sln";
 const string VersionFile = "./version.json";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// COMMAND LINE ARGUMENTS:
+// AVAILABLE BUILD PROFILES:
 //
-// --project=<PROJECT OR SOLUTION>
-//   The MSBuild project or solution to build. 
-//     Default: see DefaultSolutionFile constant above.
+// test
+//   Description: Runs a standard development build with tests
+//   Tasks: Restore → Build → Test
+//   Options: --configuration, --clean, --no-tests
 //
-// --target=<TARGET>
-//   The Cake target to run. 
-//     Default: Test
-//     Possible Values: Clean, Restore, Build, Test, Pack, Publish, PublishContainer, BillOfMaterials
+// dev
+//   Description: Fast development build without tests
+//   Tasks: Restore → Build
+//   Options: --configuration, --clean
+//
+// pack
+//   Description: Creates NuGet packages after building and testing
+//   Tasks: Restore → Build → Test → Pack
+//   Options: --configuration, --clean, --no-tests
+//
+// containers
+//   Description: Builds and publishes container images
+//   Tasks: Restore → Build → Test → PublishContainer
+//   Options: --configuration, --clean, --no-tests, --container-registry, --container-os, --container-arch
+//
+// release
+//   Description: Complete release build with all artifacts
+//   Tasks: Clean → Restore → Build → Test → Pack → PublishContainer → BillOfMaterials
+//   Options: --configuration, --no-tests, --sbom, --container-registry, --container-os, --container-arch,
+//            --github-username, --github-token, --build-counter, --build-metadata
+//
+// ci
+//   Description: Continuous integration build profile
+//   Tasks: Clean → Restore → Build → Test → Pack → BillOfMaterials
+//   Options: --configuration, --no-tests, --sbom, --github-username, --github-token,
+//            --build-counter, --build-metadata, --sign-output
+//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// COMMON OPTIONS:
 //
 // --configuration=<CONFIGURATION>
-//   The MSBuild configuration to use. 
-//     Default: Debug
+//   The MSBuild configuration to use (Debug or Release)
 //
 // --clean
-//   Specifies that this is a rebuild rather than an incremental build. All artifact, bin, and test 
-//   output folders will be cleaned prior to running the specified target.
+//   Perform a clean rebuild
 //
 // --no-tests
-//   Specifies that unit tests should be skipped, even if a target that depends on the Test target 
-//   is specified.
+//   Skip unit tests
 //
-// --ci
-//   Forces continuous integration build mode. Not required if the build is being run by a 
-//   supported continuous integration build system.
-//
-// --sign-output
-//   Tells MSBuild that signing is required by setting the 'SignOutput' build property to 'True'. 
-//   The signing implementation must be supplied by MSBuild.
-//
-// --build-counter=<COUNTER>
-//   The build counter. This is used when generating version numbers for the build.
-//
-// --build-metadata=<METADATA>
-//   Additional build metadata that will be included in the informational version number generated 
-//   for compiled assemblies.
+// --sbom <true|false>
+//   Enable/disable Software Bill of Materials generation (release/ci profiles only)
+//   Default: true for release/ci profiles
 //
 // --container-registry=<REGISTRY>
-//   The container registry to use when the PublishContainer target is run.
-//     Default: Local Docker or Podman daemon
+//   Container registry for publishing images
 //
-// --container-rid=<OS>
-//   The runtime identifier to build the container image for when calling the PublishContainer target.
-//     Default: Inferred from the RuntimeIdentifier or RuntimeIdentifiers build property
+// --container-os=<OS> --container-arch=<ARCH>
+//   Container target platform (e.g., linux, amd64)
 //
-// --property=<PROPERTY>
-//   Specifies an additional property to pass to MSBuild during Build and Pack targets. The value
-//   must be specified using a '<NAME>=<VALUE>' format e.g. --property="NoWarn=CS1591". This 
-//   argument can be specified multiple times.
+// --build-counter=<COUNTER>
+//   Build counter for versioning
 //
-// --github-username=<USERNAME>
-//   Specifies the GitHub username to use when making authenticated API calls to GitHub while 
-//   running the BillOfMaterials task. You must specify the --github-token argument as well when 
-//   specifying this argument.
+// --build-metadata=<METADATA>
+//   Additional build metadata
 //
-// --github-token=<PERSONAL ACCESS TOKEN>
-//   Specifies the GitHub personal access token to use when making authenticated API calls to 
-//   GitHub while running the BillOfMaterials task. You must specify the --github-username 
-//   argument as well when specifying this argument.
-// 
+// --github-username=<USERNAME> --github-token=<TOKEN>
+//   GitHub credentials for enhanced SBOM generation
+//
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #load ../src/Jaahas.Cake.Extensions/content/build-utilities.cake

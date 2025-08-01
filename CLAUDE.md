@@ -12,39 +12,51 @@ This is a Cake build system recipe package called `Jaahas.Cake.Extensions`. It p
 - **Sample Project**: `samples/` - Contains an example implementation showing how to use the build utilities
 - **Content Files**: `src/Jaahas.Cake.Extensions/content/` - Contains the core Cake scripts:
   - `build-utilities.cake` - Main bootstrapping and utility functions
-  - `build-state.cake` - Build state management
+  - `build-state.cake` - Build state management with profile support
   - `task-definitions.cake` - Task definitions for various build targets
+  - `profile-definitions.cake` - Build profile definitions and registry
+  - `profile-execution.cake` - Profile execution engine for task orchestration
 
 ## Build Commands
 
-The build system uses Cake with cross-platform build scripts:
+The build system uses profile-based execution with Cake build scripts:
 
-### Running Builds
+### Running Builds with Profiles
 ```bash
 # Linux/macOS
-./build.sh --target=<TARGET> --configuration=<CONFIG>
+./build.sh <profile> [options]
 
-# Windows
-.\build.ps1 --target=<TARGET> --configuration=<CONFIG>
+# Windows  
+.\build.ps1 <profile> [options]
+
+# Examples
+./build.sh test                    # Development build with tests
+./build.sh dev                     # Fast build without tests  
+./build.sh release                 # Complete release build
+./build.sh containers              # Build and publish containers
+./build.sh release --sbom false    # Release build without SBOM
 ```
 
-### Available Targets
-- `Clean` - Cleans build outputs
-- `Restore` - Restores NuGet packages  
-- `Build` - Builds the solution
-- `Test` - Runs unit tests (default target)
-- `Pack` - Creates NuGet packages
-- `Publish` - Publishes projects with publish profiles
-- `PublishContainer` - Publishes container images
-- `BillOfMaterials` - Generates SBOM using CycloneDX
+### Available Profiles
+- **`test`** - Standard development build: Restore → Build → Test
+- **`dev`** - Fast development build: Restore → Build (no tests)
+- **`pack`** - Package build: Restore → Build → Test → Pack
+- **`containers`** - Container build: Restore → Build → Test → PublishContainer
+- **`release`** - Full release: Clean → Restore → Build → Test → Pack → PublishContainer → BillOfMaterials
+- **`ci`** - CI build: Clean → Restore → Build → Test → Pack → BillOfMaterials
 
-### Common Build Arguments
-- `--target=<TARGET>` - Specify build target (default: Test)
-- `--configuration=<CONFIG>` - Build configuration (default: Debug for most targets, Release for Pack/Publish)
-- `--clean` - Perform clean rebuild
+### Common Build Options
+- `--configuration=<CONFIG>` - Build configuration (Debug/Release, auto-selected per profile)
+- `--clean` - Force clean rebuild
 - `--no-tests` - Skip unit tests
-- `--ci` - Enable CI build mode
-- `--build-counter=<NUMBER>` - Set build counter for versioning
+- `--sbom <true|false>` - Enable/disable SBOM generation (release/ci profiles)
+- `--container-registry=<URL>` - Container registry for publishing
+- `--container-os=<OS> --container-arch=<ARCH>` - Container platform targeting
+- `--build-counter=<NUMBER>` - Build counter for versioning
+- `--github-username=<USER> --github-token=<TOKEN>` - GitHub credentials for enhanced SBOM
+
+### Legacy Target Support
+The system maintains backward compatibility with `--target=<TARGET>` syntax, automatically mapping to appropriate profiles.
 
 ## Version Management
 
