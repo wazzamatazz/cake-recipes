@@ -7,7 +7,10 @@ public class BuildState {
     // The build number.
     public string BuildNumber { get; set; }
 
-    // The Cake target.
+    // The build profile being executed.
+    public string Profile { get; set; }
+
+    // The Cake target (maintained for backward compatibility).
     public string Target { get; set; }
 
     // The MSBuild configuration.
@@ -17,7 +20,7 @@ public class BuildState {
     public bool Clean { get; set; }
 
     // Specifies if the Clean target should be run.
-    public bool RunCleanTarget => Clean || string.Equals(Target, "Clean", StringComparison.OrdinalIgnoreCase);
+    public bool RunCleanTarget => Clean || string.Equals(Target, "Clean", StringComparison.OrdinalIgnoreCase) || string.Equals(Profile, "release", StringComparison.OrdinalIgnoreCase) || string.Equals(Profile, "ci", StringComparison.OrdinalIgnoreCase);
 
     // Specifies if tests should be skipped.
     public bool SkipTests { get; set; }
@@ -57,5 +60,13 @@ public class BuildState {
 
     // Additional MSBuild properties.
     public ICollection<string> MSBuildProperties { get; set; }
+
+    // Profile-specific options and configuration.
+    public Dictionary<string, object> ProfileOptions { get; set; }
+
+    public BuildState()
+    {
+        ProfileOptions = new Dictionary<string, object>();
+    }
 
 }

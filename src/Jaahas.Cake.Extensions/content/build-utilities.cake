@@ -6,12 +6,16 @@ using Spectre.Console;
 
 #load "build-state.cake"
 #load "task-definitions.cake"
+#load "profile-definitions.cake"
+#load "profile-execution.cake"
 
 public TaskDefinitions Targets { get; private set; }
+public Dictionary<string, BuildProfile> CustomProfiles { get; private set; }
 
 
 // Bootstraps the build using the specified default solution file and JSON version file.
-public void Bootstrap(string solutionFilePath, string versionFilePath, IEnumerable<string> containerProjects = null) {
+public void Bootstrap(string solutionFilePath, string versionFilePath, IEnumerable<string> containerProjects = null, Dictionary<string, BuildProfile> customProfiles = null) {
+    CustomProfiles = customProfiles;
     ConfigureBuildState(solutionFilePath, versionFilePath, GetBranchName(), containerProjects);
     ConfigureTaskEventHandlers();
     ConfigureTasks();
@@ -41,15 +45,71 @@ private string GetGitBranchName(DirectoryPath dir) {
 }
 
 
-// Gets the target to run.
+// Gets the profile to run (first positional argument, or "test" as default).
+public string GetProfile() {
+    // Try to get the first positional argument as the profile name
+    var args = System.Environment.GetCommandLineArgs();
+    for (int i = 1; i < args.Length; i++) {
+        var arg = args[i];
+        if (!arg.StartsWith("--") && !arg.StartsWith("-") && arg != "build.cake") {
+            return arg;
+        }
+    }
+    
+    // Fallback to target-based approach for backward compatibility
+    var target = Argument("target", "");
+    if (!string.IsNullOrWhiteSpace(target)) {
+        return MapTargetToProfile(target);
+    }
+    
+    return "test"; // Default profile
+}
+
+// Maps legacy target names to profile names for backward compatibility.
+private string MapTargetToProfile(string target) {
+    return target.ToLowerInvariant() switch {
+        "clean" => "test",
+        "restore" => "test", 
+        "build" => HasArgument("no-tests") ? "dev" : "test",
+        "test" => "test",
+        "pack" => "pack",
+        "publish" => "pack",
+        "publishcontainer" => "containers",
+        "billofmaterials" => "ci",
+        _ => "test"
+    };
+}
+
+// Gets the target to run (for backward compatibility).
 public string GetTarget() {
     return Argument("target", HasArgument("no-tests") ? "Build" : "Test");
 }
 
+// Runs the specified profile.
+public void Run(string profileName = null) {
+    var profile = profileName ?? GetProfile();
+    
+    try {
+        var buildProfile = BuildProfiles.GetProfile(profile, CustomProfiles);
+        var buildState = Context.Data.Get<BuildState>();
+        
+        WriteLogMessage(BuildSystem, $"Available profiles: {string.Join(", ", BuildProfiles.GetAvailableProfiles(CustomProfiles))}");
+        
+        var executor = new ProfileExecutor(Context, Targets);
+        executor.ExecuteProfile(buildProfile, buildState);
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("Unknown build profile")) {
+        WriteErrorMessage(BuildSystem, ex.Message);
+        throw;
+    }
+}
 
-// Runs the specified target.
-public void Run(string target = null) {
-    RunTarget(target ?? GetTarget());
+// Runs the specified target (for backward compatibility).
+public void RunTarget(string target) {
+    Context.CakeEngine.RegisterTask(target).Does(() => {
+        WriteLogMessage(BuildSystem, $"Legacy target mode: {target}. Consider using profile-based execution instead.");
+    });
+    Context.CakeEngine.RunTarget(target);
 }
 
 
@@ -80,19 +140,23 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
     Setup<BuildState>(context => {
         try {
             WriteTaskStartMessage(BuildSystem, "Setup");
+            
+            var profileName = GetProfile();
+            var profile = BuildProfiles.GetProfile(profileName, CustomProfiles);
+            
             var state = new BuildState() {
                 SolutionName = Argument("project", solutionFilePath),
+                Profile = profileName,
                 Target = context.TargetTask.Name,
-                Configuration = Argument("configuration", UseReleaseConfigurationForTarget(context.TargetTask.Name)
-                    ? "Release"
-                    : "Debug"),
-                ContinuousIntegrationBuild = !BuildSystem.IsLocalBuild || HasArgument("ci"),
-                Clean = HasArgument("clean") || UseReleaseConfigurationForTarget(context.TargetTask.Name),
-                SkipTests = HasArgument("no-tests"),
-                SignOutput = HasArgument("sign-output"),
-                MSBuildProperties = HasArgument("property") ? Arguments<string>("property") : new List<string>(),
                 PublishContainerProjects = containerProjects
             };
+            
+            // Apply profile defaults first, then override with command line arguments
+            ApplyProfileDefaults(state, profile);
+            ApplyCommandLineOverrides(state, profile);
+            
+            // Store profile-specific options
+            ParseProfileOptions(state, profile);
 
             // Get raw version numbers from JSON.
 
@@ -178,6 +242,96 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
             WriteTaskEndMessage(BuildSystem, "Setup");
         }
     });
+}
+
+// Applies profile default values to the build state.
+private void ApplyProfileDefaults(BuildState state, BuildProfile profile) {
+    foreach (var defaultOption in profile.DefaultOptions) {
+        switch (defaultOption.Key.ToLowerInvariant()) {
+            case "configuration":
+                state.Configuration = defaultOption.Value?.ToString() ?? "Debug";
+                break;
+            case "clean":
+                state.Clean = defaultOption.Value is bool cleanValue && cleanValue;
+                break;
+            case "no-tests":
+                state.SkipTests = defaultOption.Value is bool skipTests && skipTests;
+                break;
+            case "ci":
+                state.ContinuousIntegrationBuild = (defaultOption.Value is bool ciValue && ciValue) || !BuildSystem.IsLocalBuild;
+                break;
+            case "sign-output":
+                state.SignOutput = defaultOption.Value is bool signValue && signValue;
+                break;
+        }
+    }
+    
+    // Set MSBuild properties
+    state.MSBuildProperties = new List<string>();
+}
+
+// Applies command line argument overrides to the build state.
+private void ApplyCommandLineOverrides(BuildState state, BuildProfile profile) {
+    // Apply command line overrides
+    state.Configuration = Argument("configuration", state.Configuration);
+    state.Clean = HasArgument("clean") || state.Clean;
+    state.SkipTests = HasArgument("no-tests") || state.SkipTests;
+    state.ContinuousIntegrationBuild = HasArgument("ci") || state.ContinuousIntegrationBuild;
+    state.SignOutput = HasArgument("sign-output") || state.SignOutput;
+    
+    if (HasArgument("property")) {
+        state.MSBuildProperties = Arguments<string>("property");
+    }
+}
+
+// Parses profile-specific options and stores them in ProfileOptions.
+private void ParseProfileOptions(BuildState state, BuildProfile profile) {
+    foreach (var supportedOption in profile.SupportedOptions) {
+        switch (supportedOption.ToLowerInvariant()) {
+            case "sbom":
+                state.ProfileOptions["sbom"] = !HasArgument("sbom") || Argument("sbom", true);
+                break;
+            case "container-registry":
+                var registry = Argument("container-registry", "");
+                if (!string.IsNullOrWhiteSpace(registry)) {
+                    state.ProfileOptions["container-registry"] = registry;
+                }
+                break;
+            case "container-os":
+                var os = Argument("container-os", "");
+                if (!string.IsNullOrWhiteSpace(os)) {
+                    state.ProfileOptions["container-os"] = os;
+                }
+                break;
+            case "container-arch":
+                var arch = Argument("container-arch", "");
+                if (!string.IsNullOrWhiteSpace(arch)) {
+                    state.ProfileOptions["container-arch"] = arch;
+                }
+                break;
+            case "github-username":
+                var githubUser = Argument("github-username", "");
+                if (!string.IsNullOrWhiteSpace(githubUser)) {
+                    state.ProfileOptions["github-username"] = githubUser;
+                }
+                break;
+            case "github-token":
+                var githubToken = Argument("github-token", "");
+                if (!string.IsNullOrWhiteSpace(githubToken)) {
+                    state.ProfileOptions["github-token"] = githubToken;
+                }
+                break;
+            case "build-counter":
+                state.ProfileOptions["build-counter"] = Argument("build-counter", -1);
+                break;
+            case "build-metadata":
+                var buildMetadata = Argument("build-metadata", "");
+                if (!string.IsNullOrWhiteSpace(buildMetadata)) {
+                    state.ProfileOptions["build-metadata"] = buildMetadata;
+                }
+                break;
+        }
+    }
 }
 
 
