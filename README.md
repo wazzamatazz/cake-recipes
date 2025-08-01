@@ -1,6 +1,6 @@
 # Jaahas.Cake.Extensions
 
-`Jaahas.Cake.Extensions` is a recipe package for [Cake](https://cakebuild.net), used to provide a common way of versioning and running builds using Cake.
+`Jaahas.Cake.Extensions` is a recipe package for [Cake](https://cakebuild.net) that provides a profile-based build system for .NET projects. It offers predefined build workflows and intelligent task orchestration for common development scenarios.
 
 
 # Dependencies
@@ -10,7 +10,9 @@
 
 # Getting Started
 
-In the folder where your .NET solution file resides, create a `version.json` file that is structured as follows:
+## Quick Setup
+
+In the folder where your .NET solution file resides, create a `version.json` file:
 
 ```json
 {
@@ -21,62 +23,108 @@ In the folder where your .NET solution file resides, create a `version.json` fil
 }
 ```
 
-Update your `build.cake` file as follows:
+Update your `build.cake` file:
 
 ```cake
 const string DefaultSolutionFile = "./MySolution.sln";
 const string VersionFile = "./version.json";
 
-#load nuget:?package=Jaahas.Cake.Extensions&version=4.0.0
+#load nuget:?package=Jaahas.Cake.Extensions&version=5.0.0
 
 // Bootstrap build context and tasks.
 Bootstrap(DefaultSolutionFile, VersionFile);
 
-// Run the specified target.
+// Run with profile-based execution.
 Run();
 ```
 
+## Running Builds
 
-# Command Line Arguments
+Use intuitive profile-based commands:
 
-The following command line arguments are supported by the recipe:
+```bash
+# Development builds
+./build.sh test                        # Standard build with tests
+./build.sh dev                         # Fast build without tests
 
-| Argument | Description | Default Value | Allowed Values |
-| -------- | ----------- | ------------- | ---------------|
-| `--branch=<FRIENDLY BRANCH NAME>` | The friendly name of the source control branch that is being built. Ignored for Git repositories. | | |
-| `--project=<PROJECT OR SOLUTION>` | The MSBuild project or solution to build. | `DefaultSolutionFile` constant in `build.cake` file | |
-| `--target=<TARGET>` | The Cake target to run. | `Test` | `Clean`, `Restore`, `Build`, `Test`, `Pack`, `Publish`, `PublishContainer`, `BillOfMaterials` |
-| `--configuration=<CONFIGURATION>` | The MSBuild configuration to use. | `Debug`; `Release` when the `Pack`, `Publish` or `PublishContainer` target is specified | Any configuration defined in the MSBuild solution |
-| `--clean` | Specifies that this is a rebuild rather than an incremental build. All artifact, bin, and test output folders will be cleaned prior to running the specified target. | | |
-| `--no-tests` | Specifies that unit tests should be skipped, even if a target that depends on the `Test` target is specified. | | |
-| `--ci` | Forces continuous integration build mode. Not required if the build is being run by a supported continuous integration build system. | | |
-| `--sign-output` | Tells MSBuild that signing is required by setting the 'SignOutput' build property to 'True'. The signing implementation must be supplied by MSBuild. | | |
-| `--build-counter=<COUNTER>` | The build counter. This is used when generating version numbers for the build. | -1 | |
-| `--build-metadata=<METADATA>` | Additional build metadata that will be included in the information version number generated for compiled assemblies. | | |
-| `--container-registry=<REGISTRY>` | The container registry to publish images to when calling the `PublishContainer` target. | Local Docker or Podman registry. | Any valid registry address. Registry authentication is managed by Docker or Podman. See [here](https://github.com/dotnet/sdk-container-builds/blob/main/docs/RegistryAuthentication.md) for more information. |
-| `--container-os=<OS>` | The container operating system to target. | `linux` | Any valid [.NET runtime identifier](https://learn.microsoft.com/en-us/dotnet/core/rid-catalog) operating system. |
-| `--container-arch=<ARCHITECTURE>` | The container processor architecture to use. | The architecture for the operating system. | Any valid [.NET runtime identifier](https://learn.microsoft.com/en-us/dotnet/core/rid-catalog) processor architecture. |
-| `--property=<PROPERTY>` | Specifies an additional property to pass to MSBuild. The value must be specified using a `<NAME>=<VALUE>` format e.g. `--property="NoWarn=CS1591"`. This argument can be specified multiple times. | | |
-| `--github-username=<USERNAME>` | Specifies the GitHub username to use when making authenticated API calls to GitHub while running the `BillOfMaterials` task. You must specify the `--github-token` argument as well when specifying this argument. | |
-| `--github-token=<PERSONAL ACCESS TOKEN>` | Specifies the GitHub personal access token to use when making authenticated API calls to GitHub while running the `BillOfMaterials` task. You must specify the `--github-username` argument as well when specifying this argument. | |
+# Release builds  
+./build.sh release                     # Complete release (all components)
+./build.sh release --packages=false    # Release without NuGet packages
+./build.sh release --containers=false  # Release without containers
+./build.sh release --ci --sign-output  # CI release with signing
+
+# Component-specific builds
+./build.sh pack                        # Build and create packages
+./build.sh containers                  # Build and publish containers
+```
 
 
-# Targets
+# Build Profiles
 
-The recipe supports the following targets (specified by the `--target` parameter passed to Cake):
+The recipe provides predefined build profiles for common scenarios:
 
-| Target | Description | Default Build Configuration |
-| ------ | ----------- | --------------------------- |
-| `Clean` | Cleans the `obj`, `bin`, `artifacts` and `TestResults` folders for the repository. | Debug |
-| `Restore` | Restores NuGet packages for the solution. | Debug |
-| `Build` | Builds the solution. | Debug |
-| `Test` | Runs unit tests for the solution. | Debug |
-| `Pack` | Creates NuGet packages for the solution. | Release |
-| `Publish` | Publishes any solution projects that define one or more `.pubxml` publish profiles under the project folder. | Release |
-| `PublishContainer` | Publishes container images for any solution projects that are registered as container projects. [See below](#publishing-container-images) for more information. | Release |
-| `BillOfMaterials` | Generates a Software Bill of Materials (SBOM) for the solution using [CycloneDX](https://github.com/CycloneDX/cyclonedx-dotnet). | Release |
+| Profile | Description | Tasks | Default Config |
+| ------- | ----------- | ----- | -------------- |
+| `test` | Standard development build with tests | Restore → Build → Test | Debug |
+| `dev` | Fast development build without tests | Restore → Build | Debug |
+| `pack` | Build and create NuGet packages | Restore → Build → Test → Pack | Release |
+| `containers` | Build and publish container images | Restore → Build → Test → PublishContainer | Release |
+| `release` | Complete release with all components | Clean → Restore → Build → Test → Pack → PublishContainer → BillOfMaterials | Release |
 
-The Default Build Configuration specifies the default MSBuild configuration used when specifying a target and the `--configuration` parameter is not specified.
+## Release Profile Component Control
+
+The `release` profile supports component toggles for flexible builds:
+
+| Argument | Description | Default |
+| -------- | ----------- | ------- |
+| `--packages=<true\|false>` | Enable/disable NuGet package creation | `true` |
+| `--containers=<true\|false>` | Enable/disable container image publishing | `true` |
+| `--sbom=<true\|false>` | Enable/disable Software Bill of Materials generation | `true` |
+| `--ci` | Enable continuous integration mode | `false` |
+| `--sign-output` | Enable output signing | `false` |
+
+## Common Arguments
+
+| Argument | Description | Default Value |
+| -------- | ----------- | ------------- |
+| `--project=<PROJECT OR SOLUTION>` | The MSBuild project or solution to build | `DefaultSolutionFile` constant in `build.cake` file |
+| `--configuration=<CONFIGURATION>` | The MSBuild configuration to use | Profile-specific (Debug/Release) |
+| `--clean` | Perform a clean rebuild | Profile-specific |
+| `--no-tests` | Skip unit tests | `false` |
+| `--build-counter=<COUNTER>` | Build counter for versioning | -1 |
+| `--build-metadata=<METADATA>` | Additional build metadata | |
+| `--container-registry=<REGISTRY>` | Container registry for publishing images | Local Docker/Podman registry |
+| `--property=<PROPERTY>` | Additional MSBuild property (`NAME=VALUE` format) | |
+| `--github-username=<USERNAME>` | GitHub username for SBOM generation (required with `--github-token`) | |
+| `--github-token=<TOKEN>` | GitHub token for SBOM generation (required with `--github-username`) | |
+
+## Legacy Support
+
+The system maintains backward compatibility with the legacy target-based approach:
+
+| Legacy Argument | Modern Equivalent | Notes |
+| --------------- | ----------------- | ----- |
+| `--target=Test` | `test` profile | Automatically mapped |
+| `--target=Pack` | `pack` profile | Automatically mapped |
+| `--target=PublishContainer` | `containers` profile | Automatically mapped |
+
+
+# Individual Tasks
+
+The recipe defines the following individual tasks that are orchestrated by profiles:
+
+| Task | Description | Default Configuration |
+| ---- | ----------- | -------------------- |
+| `Clean` | Cleans the `obj`, `bin`, `artifacts` and `TestResults` folders for the repository | Debug |
+| `Restore` | Restores NuGet packages for the solution | Debug |
+| `Build` | Builds the solution | Debug |
+| `Test` | Runs unit tests for the solution | Debug |
+| `Pack` | Creates NuGet packages for the solution | Release |
+| `Publish` | Publishes any solution projects that define `.pubxml` publish profiles | Release |
+| `PublishContainer` | Publishes container images for registered container projects | Release |
+| `BillOfMaterials` | Generates Software Bill of Materials (SBOM) using [CycloneDX](https://github.com/CycloneDX/cyclonedx-dotnet) | Release |
+
+**Note**: Tasks are executed automatically by profiles. Direct task execution via `--target` is supported for backward compatibility but profile-based execution is recommended.
 
 
 # Version Numbers
