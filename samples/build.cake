@@ -1,9 +1,11 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Use build.ps1 or build.sh to run the build script with a profile. Examples:
-//   ./build.sh test        - Run development build with tests
-//   ./build.sh dev         - Fast development build without tests
-//   ./build.sh release     - Complete release build with all artifacts
-//   ./build.sh containers  - Build and publish container images
+//   ./build.sh test                      - Run development build with tests
+//   ./build.sh dev                       - Fast development build without tests
+//   ./build.sh release                   - Complete release build with all components
+//   ./build.sh release --packages=false  - Release build without NuGet packages
+//   ./build.sh release --containers=false - Release build without containers
+//   ./build.sh release --ci --sign-output - CI release build with signing
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const string DefaultSolutionFile = "./Example.sln";
@@ -30,19 +32,14 @@ const string VersionFile = "./version.json";
 // containers
 //   Description: Builds and publishes container images
 //   Tasks: Restore → Build → Test → PublishContainer
-//   Options: --configuration, --clean, --no-tests, --container-registry, --container-os, --container-arch
+//   Options: --configuration, --clean, --no-tests, --container-registry
 //
 // release
-//   Description: Complete release build with all artifacts
+//   Description: Complete release build with configurable components
 //   Tasks: Clean → Restore → Build → Test → Pack → PublishContainer → BillOfMaterials
-//   Options: --configuration, --no-tests, --sbom, --container-registry, --container-os, --container-arch,
-//            --github-username, --github-token, --build-counter, --build-metadata
-//
-// ci
-//   Description: Continuous integration build profile
-//   Tasks: Clean → Restore → Build → Test → Pack → BillOfMaterials
-//   Options: --configuration, --no-tests, --sbom, --github-username, --github-token,
-//            --build-counter, --build-metadata, --sign-output
+//   Options: --configuration, --clean, --no-tests, --packages, --containers, --sbom,
+//            --ci, --sign-output, --container-registry, --build-counter, --build-metadata,
+//            --github-username, --github-token (both required for SBOM)
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // COMMON OPTIONS:
@@ -56,15 +53,33 @@ const string VersionFile = "./version.json";
 // --no-tests
 //   Skip unit tests
 //
+// RELEASE PROFILE COMPONENT TOGGLES:
+//
+// --packages <true|false>
+//   Enable/disable NuGet package creation (release profile only)
+//   Default: true
+//
+// --containers <true|false>
+//   Enable/disable container image publishing (release profile only)  
+//   Default: true
+//
 // --sbom <true|false>
-//   Enable/disable Software Bill of Materials generation (release/ci profiles only)
-//   Default: true for release/ci profiles
+//   Enable/disable Software Bill of Materials generation (release profile only)
+//   Default: true
+//   Requires: --github-username and --github-token (both required together)
+//
+// --ci
+//   Enable continuous integration mode (release profile only)
+//   Default: false
+//
+// --sign-output  
+//   Enable output signing (release profile only)
+//   Default: false
+//
+// OTHER OPTIONS:
 //
 // --container-registry=<REGISTRY>
 //   Container registry for publishing images
-//
-// --container-os=<OS> --container-arch=<ARCH>
-//   Container target platform (e.g., linux, amd64)
 //
 // --build-counter=<COUNTER>
 //   Build counter for versioning
@@ -73,7 +88,7 @@ const string VersionFile = "./version.json";
 //   Additional build metadata
 //
 // --github-username=<USERNAME> --github-token=<TOKEN>
-//   GitHub credentials for enhanced SBOM generation
+//   GitHub credentials for SBOM generation (both required together)
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

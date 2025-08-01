@@ -30,11 +30,12 @@ The build system uses profile-based execution with Cake build scripts:
 .\build.ps1 <profile> [options]
 
 # Examples
-./build.sh test                    # Development build with tests
-./build.sh dev                     # Fast build without tests  
-./build.sh release                 # Complete release build
-./build.sh containers              # Build and publish containers
-./build.sh release --sbom false    # Release build without SBOM
+./build.sh test                        # Development build with tests
+./build.sh dev                         # Fast build without tests  
+./build.sh release                     # Complete release build (all components)
+./build.sh release --packages=false    # Release without NuGet packages
+./build.sh release --containers=false  # Release without containers
+./build.sh release --ci --sign-output  # CI release with signing
 ```
 
 ### Available Profiles
@@ -42,18 +43,23 @@ The build system uses profile-based execution with Cake build scripts:
 - **`dev`** - Fast development build: Restore → Build (no tests)
 - **`pack`** - Package build: Restore → Build → Test → Pack
 - **`containers`** - Container build: Restore → Build → Test → PublishContainer
-- **`release`** - Full release: Clean → Restore → Build → Test → Pack → PublishContainer → BillOfMaterials
-- **`ci`** - CI build: Clean → Restore → Build → Test → Pack → BillOfMaterials
+- **`release`** - Configurable release build: Clean → Restore → Build → Test → Pack → PublishContainer → BillOfMaterials
+
+### Release Profile Component Control
+The release profile supports component toggles for flexible builds:
+- `--packages=false` - Skip NuGet package creation
+- `--containers=false` - Skip container image publishing
+- `--sbom=false` - Skip Software Bill of Materials generation
+- `--ci` - Enable continuous integration mode
+- `--sign-output` - Enable output signing
 
 ### Common Build Options
 - `--configuration=<CONFIG>` - Build configuration (Debug/Release, auto-selected per profile)
 - `--clean` - Force clean rebuild
 - `--no-tests` - Skip unit tests
-- `--sbom <true|false>` - Enable/disable SBOM generation (release/ci profiles)
 - `--container-registry=<URL>` - Container registry for publishing
-- `--container-os=<OS> --container-arch=<ARCH>` - Container platform targeting
 - `--build-counter=<NUMBER>` - Build counter for versioning
-- `--github-username=<USER> --github-token=<TOKEN>` - GitHub credentials for enhanced SBOM
+- `--github-username=<USER> --github-token=<TOKEN>` - GitHub credentials for SBOM (both required together)
 
 ### Legacy Target Support
 The system maintains backward compatibility with `--target=<TARGET>` syntax, automatically mapping to appropriate profiles.
