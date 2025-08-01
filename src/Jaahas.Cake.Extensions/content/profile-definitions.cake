@@ -74,44 +74,29 @@ public static class BuildProfiles
                     ["configuration"] = "Release",
                     ["clean"] = true
                 },
-                SupportedOptions = new List<string> { "configuration", "clean", "no-tests", "container-registry", "container-os", "container-arch" }
+                SupportedOptions = new List<string> { "configuration", "clean", "no-tests", "container-registry" }
             },
             
             ["release"] = new BuildProfile
             {
                 Name = "release",
-                Description = "Complete release build with all artifacts",
+                Description = "Complete release build with configurable components",
                 Tasks = new List<string> { "Clean", "Restore", "Build", "Test", "Pack", "PublishContainer", "BillOfMaterials" },
                 DefaultOptions = new Dictionary<string, object>
                 {
                     ["configuration"] = "Release",
                     ["clean"] = true,
-                    ["ci"] = true,
-                    ["sbom"] = true
+                    ["packages"] = true,
+                    ["containers"] = true,
+                    ["sbom"] = true,
+                    ["ci"] = false,
+                    ["sign-output"] = false
                 },
                 SupportedOptions = new List<string> 
                 { 
-                    "configuration", "no-tests", "sbom", "container-registry", "container-os", "container-arch", 
-                    "github-username", "github-token", "build-counter", "build-metadata"
-                }
-            },
-            
-            ["ci"] = new BuildProfile
-            {
-                Name = "ci",
-                Description = "Continuous integration build profile",
-                Tasks = new List<string> { "Clean", "Restore", "Build", "Test", "Pack", "BillOfMaterials" },
-                DefaultOptions = new Dictionary<string, object>
-                {
-                    ["configuration"] = "Release",
-                    ["clean"] = true,
-                    ["ci"] = true,
-                    ["sbom"] = true
-                },
-                SupportedOptions = new List<string> 
-                { 
-                    "configuration", "no-tests", "sbom", "github-username", "github-token", 
-                    "build-counter", "build-metadata", "sign-output"
+                    "configuration", "clean", "no-tests", "packages", "containers", "sbom", 
+                    "ci", "sign-output", "container-registry", "build-counter", "build-metadata",
+                    "github-username", "github-token"
                 }
             }
         };

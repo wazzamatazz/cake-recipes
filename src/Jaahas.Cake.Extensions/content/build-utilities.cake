@@ -292,8 +292,14 @@ private void ApplyCommandLineOverrides(BuildState state, BuildProfile profile) {
     state.Configuration = Argument("configuration", state.Configuration);
     state.Clean = HasArgument("clean") || state.Clean;
     state.SkipTests = HasArgument("no-tests") || state.SkipTests;
-    state.ContinuousIntegrationBuild = HasArgument("ci") || state.ContinuousIntegrationBuild;
-    state.SignOutput = HasArgument("sign-output") || state.SignOutput;
+    
+    // CI mode can be enabled via command line arg or profile option
+    var ciFromProfile = state.ProfileOptions.ContainsKey("ci") && state.ProfileOptions["ci"] is bool ciEnabled && ciEnabled;
+    state.ContinuousIntegrationBuild = HasArgument("ci") || ciFromProfile || !BuildSystem.IsLocalBuild;
+    
+    // Sign output can be enabled via command line arg or profile option
+    var signFromProfile = state.ProfileOptions.ContainsKey("sign-output") && state.ProfileOptions["sign-output"] is bool signEnabled && signEnabled;
+    state.SignOutput = HasArgument("sign-output") || signFromProfile;
     
     if (HasArgument("property")) {
         state.MSBuildProperties = Arguments<string>("property");
@@ -304,25 +310,26 @@ private void ApplyCommandLineOverrides(BuildState state, BuildProfile profile) {
 private void ParseProfileOptions(BuildState state, BuildProfile profile) {
     foreach (var supportedOption in profile.SupportedOptions) {
         switch (supportedOption.ToLowerInvariant()) {
+            case "packages":
+                state.ProfileOptions["packages"] = !HasArgument("packages") || Argument("packages", true);
+                break;
+            case "containers":
+                state.ProfileOptions["containers"] = !HasArgument("containers") || Argument("containers", true);
+                break;
             case "sbom":
                 state.ProfileOptions["sbom"] = !HasArgument("sbom") || Argument("sbom", true);
+                break;
+            case "ci":
+                // CI can be enabled via argument or profile default, but command line overrides
+                state.ProfileOptions["ci"] = HasArgument("ci") || (profile.DefaultOptions.ContainsKey("ci") && profile.DefaultOptions["ci"] is bool ciDefault && ciDefault);
+                break;
+            case "sign-output":
+                state.ProfileOptions["sign-output"] = HasArgument("sign-output");
                 break;
             case "container-registry":
                 var registry = Argument("container-registry", "");
                 if (!string.IsNullOrWhiteSpace(registry)) {
                     state.ProfileOptions["container-registry"] = registry;
-                }
-                break;
-            case "container-os":
-                var os = Argument("container-os", "");
-                if (!string.IsNullOrWhiteSpace(os)) {
-                    state.ProfileOptions["container-os"] = os;
-                }
-                break;
-            case "container-arch":
-                var arch = Argument("container-arch", "");
-                if (!string.IsNullOrWhiteSpace(arch)) {
-                    state.ProfileOptions["container-arch"] = arch;
                 }
                 break;
             case "github-username":

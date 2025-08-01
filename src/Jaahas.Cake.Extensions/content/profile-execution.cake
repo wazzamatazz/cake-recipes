@@ -48,18 +48,32 @@ public class ProfileExecutor
             return true;
         }
         
-        // Skip BillOfMaterials if sbom is disabled
-        if (taskName == "BillOfMaterials" && state.ProfileOptions.ContainsKey("sbom") && 
-            state.ProfileOptions["sbom"] is bool sbomEnabled && !sbomEnabled)
+        // Skip Pack if packages is disabled
+        if (taskName == "Pack" && state.ProfileOptions.ContainsKey("packages") && 
+            state.ProfileOptions["packages"] is bool packagesEnabled && !packagesEnabled)
         {
             return true;
         }
         
-        // Skip PublishContainer if no container projects are specified
+        // Skip PublishContainer if containers is disabled
+        if (taskName == "PublishContainer" && state.ProfileOptions.ContainsKey("containers") && 
+            state.ProfileOptions["containers"] is bool containersEnabled && !containersEnabled)
+        {
+            return true;
+        }
+        
+        // Skip PublishContainer if no container projects are specified (even if containers is enabled)
         if (taskName == "PublishContainer" && 
             (state.PublishContainerProjects == null || !state.PublishContainerProjects.Any()))
         {
             _context.Information("No container projects specified. Use Bootstrap() containerProjects parameter to enable container publishing.");
+            return true;
+        }
+        
+        // Skip BillOfMaterials if sbom is disabled
+        if (taskName == "BillOfMaterials" && state.ProfileOptions.ContainsKey("sbom") && 
+            state.ProfileOptions["sbom"] is bool sbomEnabled && !sbomEnabled)
+        {
             return true;
         }
         
@@ -287,8 +301,6 @@ public class ProfileExecutor
             }
 
             var registry = GetProfileOption(state, "container-registry", "");
-            var os = GetProfileOption(state, "container-os", "");
-            var arch = GetProfileOption(state, "container-arch", "");
 
             foreach (var projectFile in _context.GetFiles("./**/*.*proj"))
             {
@@ -305,15 +317,6 @@ public class ProfileExecutor
                 if (!string.IsNullOrWhiteSpace(registry))
                 {
                     buildSettings.MSBuildSettings.WithProperty("ContainerRegistry", registry);
-                }
-
-                if (!string.IsNullOrWhiteSpace(os))
-                {
-                    buildSettings.MSBuildSettings.WithProperty("ContainerRuntimeIdentifier", $"{os}-{arch}");
-                }
-                else if (!string.IsNullOrWhiteSpace(arch))
-                {
-                    buildSettings.MSBuildSettings.WithProperty("ContainerRuntimeIdentifier", $"linux-{arch}");
                 }
 
                 ApplyMSBuildProperties(buildSettings.MSBuildSettings, state);
@@ -340,14 +343,10 @@ public class ProfileExecutor
             var githubUser = GetProfileOption(state, "github-username", "");
             var githubToken = GetProfileOption(state, "github-token", "");
 
-            if (!string.IsNullOrWhiteSpace(githubUser) && string.IsNullOrWhiteSpace(githubToken))
+            // Require both GitHub username and token for SBOM generation to avoid API rate limiting
+            if (string.IsNullOrWhiteSpace(githubUser) || string.IsNullOrWhiteSpace(githubToken))
             {
-                throw new InvalidOperationException("When specifying a GitHub username for Bill of Materials generation you must also specify a personal access token using the '--github-token' argument.");
-            }
-
-            if (!string.IsNullOrWhiteSpace(githubToken) && string.IsNullOrWhiteSpace(githubUser))
-            {
-                throw new InvalidOperationException("When specifying a GitHub personal access token for Bill of Materials generation you must also specify the username for the token using the '--github-username' argument.");
+                throw new InvalidOperationException("SBOM generation requires both '--github-username' and '--github-token' arguments to avoid GitHub API rate limiting. Please provide both parameters.");
             }
 
             var cycloneDxArgs = new ProcessArgumentBuilder()
