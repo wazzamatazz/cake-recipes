@@ -2,7 +2,7 @@ using System.Text.Json;
 
 using Spectre.Console;
 
-#tool dotnet:?package=CycloneDX&version=5.0.1
+#tool dotnet:?package=CycloneDX&version=5.4.0
 
 #load "build-state.cake"
 #load "task-definitions.cake"
