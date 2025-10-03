@@ -449,15 +449,18 @@ private void WriteTaskEndMessage(BuildSystem buildSystem, string description) {
 private void WriteBuildStateToLog(BuildSystem buildSystem, BuildState state) {
     WriteLogMessage(buildSystem, $"Solution Name: {state.SolutionName}", true);
     WriteLogMessage(buildSystem, $"Build Number: {state.BuildNumber}", false);
+    WriteLogMessage(buildSystem, $"Prerelease Build: {state.IsPrereleaseVersion}", false);
+    WriteLogMessage(buildSystem, $"Continuous Integration Build: {state.ContinuousIntegrationBuild}", false);
+
     WriteLogMessage(buildSystem, $"Assembly Version: {state.AssemblyVersion}", true);
     WriteLogMessage(buildSystem, $"File Version: {state.AssemblyFileVersion}", false);
     WriteLogMessage(buildSystem, $"Informational Version: {state.InformationalVersion}", false);
     WriteLogMessage(buildSystem, $"Package Version: {state.PackageVersion}", false);
+    
     WriteLogMessage(buildSystem, $"Target: {state.Target}", true);
     WriteLogMessage(buildSystem, $"Configuration: {state.Configuration}", false);
     WriteLogMessage(buildSystem, $"Clean: {state.RunCleanTarget}", false);
     WriteLogMessage(buildSystem, $"Skip Tests: {state.SkipTests}", false);
-    WriteLogMessage(buildSystem, $"Continuous Integration Build: {state.ContinuousIntegrationBuild}", false);
     WriteLogMessage(buildSystem, $"Sign Output: {state.CanSignOutput}", false);
 }
 
