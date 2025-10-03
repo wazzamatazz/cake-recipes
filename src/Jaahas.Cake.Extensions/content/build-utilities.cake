@@ -114,6 +114,9 @@ private void ConfigureBuildState(string solutionFilePath, string versionFilePath
             state.MajorVersion = majorVersion;
             state.MinorVersion = minorVersion;
             state.PatchVersion = patchVersion;
+            state.PrereleaseVersion = string.IsNullOrWhiteSpace(versionSuffix)
+                ? null 
+                : versionSuffix;
 
             // Compute build and version numbers.
 
@@ -497,6 +500,7 @@ public static void ApplyMSBuildProperties(DotNetMSBuildSettings settings, BuildS
     settings.Properties["FileVersion"] = new List<string> { state.AssemblyFileVersion };
     settings.Properties["Version"] = new List<string> { state.PackageVersion };
     settings.Properties["InformationalVersion"] = new List<string> { state.InformationalVersion };
+    settings.Properties["IsPrereleaseVersion"] = new List<string> { state.IsPrereleaseVersion ? "true" : "false" };
 }
 
 
