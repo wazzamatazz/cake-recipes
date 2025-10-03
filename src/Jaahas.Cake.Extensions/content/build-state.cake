@@ -39,6 +39,12 @@ public class BuildState {
     
     // Patch version number.
     public int PatchVersion { get; set; }
+
+    // Prerelease version label.
+    public string PrereleaseVersion { get; set; }
+
+    // Specifies if this is a prerelease version.
+    public bool IsPrereleaseVersion => !string.IsNullOrWhiteSpace(PrereleaseVersion);
     
     // MSBuild AssemblyVersion property value.
     public string AssemblyVersion { get; set; }
